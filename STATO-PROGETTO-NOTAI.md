@@ -1,6 +1,6 @@
 # Stato progetto NotaioGiusto.it
 
-Aggiornato: 2026-08-13 (blocco fascicolo immobili / dati catastali)
+Aggiornato: 2026-08-13 (blocco mappe embedded listing + scheda)
 
 ## Obiettivo
 
@@ -73,6 +73,12 @@ Nel funnel preventivo i notai selezionati vengono etichettati come “Servizio s
 ### Homepage / listing / scheda / quanto-costa / claim
 
 Restano attivi e collegati al nuovo funnel preventivo.
+
+### Mappe embedded (stile Horizon)
+
+- listing `/notai`: layout lista + mappa sticky con Leaflet/OSM (fallback iframe OSM), marker multipli, badge geo (`Nel comune cercato`, `A circa X km`, `In mappa`);
+- scheda `/notai/[slug]`: iframe OSM incorporato + indicazioni Google solo come link secondario;
+- helper in `src/lib/geo.ts`, componente `src/components/NotaiListingMap.astro`.
 
 ### Funnel preventivo guidato
 

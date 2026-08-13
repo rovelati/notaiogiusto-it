@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { euro } from '../../lib/format';
+import { asCoord, googleDirectionsUrl, openStreetMapEmbedUrl } from '../../lib/geo';
 import { getNotary, getNotaryServices, getTopServices } from '../../lib/notai';
 
 const notary = await getNotary(Astro.params.slug || '');
@@ -10,20 +11,34 @@ const declaredServices = await getNotaryServices(notary.id, 8);
 const popularServices = await getTopServices(8);
 const services = declaredServices.length ? declaredServices : popularServices;
 const addressLine = [notary.address, notary.cap, notary.comune].filter(Boolean).join(', ');
+const lat = asCoord(notary.lat);
+const lng = asCoord(notary.lng);
 const mapQuery = encodeURIComponent(addressLine || notary.full_name);
-const directionsUrl = notary.lat && notary.lng
-  ? `https://www.google.com/maps/dir/?api=1&destination=${notary.lat},${notary.lng}&travelmode=driving`
+const directionsUrl = lat != null && lng != null
+  ? googleDirectionsUrl(lat, lng)
   : `https://www.google.com/maps/search/?api=1&query=${mapQuery}`;
-const staticMapUrl = notary.lat && notary.lng
-  ? `https://www.openstreetmap.org/export/embed.html?bbox=${notary.lng - 0.01}%2C${notary.lat - 0.008}%2C${notary.lng + 0.01}%2C${notary.lat + 0.008}&layer=mapnik&marker=${notary.lat}%2C${notary.lng}`
-  : null;
+const staticMapUrl = lat != null && lng != null ? openStreetMapEmbedUrl(lat, lng, 15) : null;
 const phoneHref = notary.phone ? `tel:${notary.phone.replace(/\s+/g, '')}` : null;
 const metaDescription = `Contatti, sede, servizi e richiesta preventivo per ${notary.full_name}${notary.comune ? `, notaio a ${notary.comune}` : ''}. Profilo da fonte ufficiale Notariato.`;
+const geoJsonLd = lat != null && lng != null
+  ? {
+      '@context': 'https://schema.org',
+      '@type': 'LegalService',
+      name: notary.full_name,
+      address: addressLine || undefined,
+      geo: {
+        '@type': 'GeoCoordinates',
+        latitude: lat,
+        longitude: lng,
+      },
+    }
+  : null;
 ---
 <BaseLayout
   title={`${notary.full_name} | Notaio a ${notary.comune || ''}`}
   description={metaDescription}
   canonicalPath={`/notai/${notary.source_slug}`}
+  jsonLd={geoJsonLd ? [geoJsonLd] : undefined}
 >
   <section class="notary-hero">
     <div class="notary-hero__inner">
@@ -138,15 +153,18 @@ const metaDescription = `Contatti, sede, servizi e richiesta preventivo per ${no
       <div class="card map-card">
         <div class="section-title-row">
           <h2>Mappa</h2>
-          <a class="official-link" rel="nofollow" target="_blank" href={directionsUrl}>Portami lì</a>
+          <a class="official-link" rel="nofollow" target="_blank" href={directionsUrl}>Indicazioni</a>
         </div>
         {staticMapUrl ? (
-          <iframe title={`Mappa ${notary.full_name}`} src={staticMapUrl} loading="lazy"></iframe>
+          <>
+            <iframe title={`Mappa ${notary.full_name}`} src={staticMapUrl} loading="lazy"></iframe>
+            <p class="helper-text map-embed-note">Mappa incorporata OpenStreetMap. Le indicazioni stradali restano un link secondario.</p>
+          </>
         ) : (
           <div class="map-fallback">
             <strong>{notary.comune || 'Sede'}</strong>
-            <span>{addressLine || 'Coordinate non ancora disponibili'}</span>
-            <a class="btn secondary" rel="nofollow" target="_blank" href={directionsUrl}>Apri su Google Maps</a>
+            <span>{addressLine || 'Coordinate non ancora disponibili per la mappa incorporata.'}</span>
+            <a class="btn secondary" rel="nofollow" target="_blank" href={directionsUrl}>Cerca indicazioni</a>
           </div>
         )}
       </div>

@@ -1,0 +1,140 @@
+---
+import { averageCenter, openStreetMapEmbedUrl } from '../lib/geo';
+
+export type ListingMapPoint = {
+  id: string;
+  name: string;
+  slug: string;
+  address?: string | null;
+  lat: number;
+  lng: number;
+  rank: number;
+  exactCity?: boolean;
+};
+
+const {
+  points = [],
+  locationLabel = '',
+} = Astro.props as {
+  points?: ListingMapPoint[];
+  locationLabel?: string;
+};
+
+const mapPoints = points
+  .filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng))
+  .slice(0, 24);
+
+const center = averageCenter(mapPoints) || { lat: 41.9027835, lng: 12.4963655 };
+const zoom = mapPoints.length > 1 ? 12 : 13;
+const fallbackUrl = openStreetMapEmbedUrl(center.lat, center.lng, zoom);
+const payload = JSON.stringify(mapPoints);
+---
+<aside class="listing-map-panel" aria-label="Mappa risultati">
+  <div class="listing-map-panel__head">
+    <strong>Mappa</strong>
+    <span>
+      {mapPoints.length
+        ? `${mapPoints.length} studi in mappa${locationLabel ? ` · ${locationLabel}` : ''}`
+        : 'Coordinate non ancora disponibili'}
+    </span>
+  </div>
+  {mapPoints.length ? (
+    <div class="listing-map-shell" data-listing-map data-points={payload} data-center-lat={center.lat} data-center-lng={center.lng}>
+      <iframe
+        class="listing-map-fallback"
+        title={`Mappa notai${locationLabel ? ` a ${locationLabel}` : ''}`}
+        src={fallbackUrl}
+        loading="lazy"
+      ></iframe>
+      <div class="listing-map-canvas" hidden></div>
+    </div>
+  ) : (
+    <div class="listing-map-empty">
+      <strong>Mappa in arrivo</strong>
+      <span>Quando gli studi di questa ricerca avranno coordinate, li vedrai qui senza uscire dalla pagina.</span>
+    </div>
+  )}
+</aside>
+
+<script>
+  import L from 'leaflet';
+  import 'leaflet/dist/leaflet.css';
+
+  type Point = {
+    id: string;
+    name: string;
+    slug: string;
+    address?: string | null;
+    lat: number;
+    lng: number;
+    rank: number;
+    exactCity?: boolean;
+  };
+
+  const blueIcon = new L.Icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41],
+  });
+
+  const goldIcon = new L.Icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-gold.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41],
+  });
+
+  function initMap(root: HTMLElement) {
+    if (root.dataset.mapReady === '1') return;
+    const canvas = root.querySelector<HTMLElement>('.listing-map-canvas');
+    const fallback = root.querySelector<HTMLElement>('.listing-map-fallback');
+    if (!canvas) return;
+
+    let points: Point[] = [];
+    try {
+      points = JSON.parse(root.dataset.points || '[]') as Point[];
+    } catch {
+      return;
+    }
+    if (!points.length) return;
+
+    const centerLat = Number(root.dataset.centerLat);
+    const centerLng = Number(root.dataset.centerLng);
+    const map = L.map(canvas, { scrollWheelZoom: false }).setView(
+      [centerLat || points[0].lat, centerLng || points[0].lng],
+      points.length > 1 ? 12 : 13,
+    );
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    }).addTo(map);
+
+    const layer = L.featureGroup();
+    points.forEach((point) => {
+      const marker = L.marker([point.lat, point.lng], {
+        icon: point.exactCity ? goldIcon : blueIcon,
+      }).bindPopup(
+        `<strong>${point.rank}. ${point.name}</strong>` +
+          (point.address ? `<div>${point.address}</div>` : '') +
+          `<div><a href="/notai/${point.slug}">Vedi scheda</a></div>`,
+      );
+      marker.addTo(layer);
+    });
+    layer.addTo(map);
+    if (points.length > 1) {
+      map.fitBounds(layer.getBounds(), { padding: [28, 28], maxZoom: 14 });
+    }
+
+    canvas.hidden = false;
+    if (fallback) fallback.hidden = true;
+    root.dataset.mapReady = '1';
+    requestAnimationFrame(() => map.invalidateSize());
+  }
+
+  document.querySelectorAll<HTMLElement>('[data-listing-map]').forEach(initMap);
+</script>

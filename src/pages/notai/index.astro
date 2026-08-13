@@ -1,13 +1,21 @@
 ---
+import NotaiListingMap from '../../components/NotaiListingMap.astro';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { euro, titleCase } from '../../lib/format';
+import {
+  asCoord,
+  averageCenter,
+  distanceKm,
+  formatDistanceKm,
+  hasCoords,
+} from '../../lib/geo';
 import { getService, searchNotaries } from '../../lib/notai';
 import { shouldNoindexSearch } from '../../lib/site';
 
 const q = Astro.url.searchParams.get('q') || '';
 const comune = Astro.url.searchParams.get('comune') || '';
 const servizio = Astro.url.searchParams.get('servizio') || '';
-const [notaries, service] = await Promise.all([
+const [rawNotaries, service] = await Promise.all([
   searchNotaries({ q, comune, limit: 24 }),
   servizio ? getService(servizio) : Promise.resolve(null),
 ]);
@@ -16,12 +24,58 @@ const locationLabel = comune ? titleCase(comune.trim()) : '';
 const title = service
   ? `${serviceName}${locationLabel ? ` a ${locationLabel}` : ''}: notai e preventivo`
   : 'Cerca notai | NotaioGiusto.it';
-const exactCityCount = locationLabel
-  ? notaries.filter((notary) => (notary.comune || '').toLowerCase() === locationLabel.toLowerCase()).length
-  : 0;
+
+const exactCityPoints = rawNotaries
+  .filter((notary) => locationLabel && (notary.comune || '').toLowerCase() === locationLabel.toLowerCase())
+  .filter(hasCoords)
+  .map((notary) => ({ lat: asCoord(notary.lat)!, lng: asCoord(notary.lng)! }));
+const searchCenter =
+  averageCenter(exactCityPoints) ||
+  averageCenter(
+    rawNotaries.filter(hasCoords).map((notary) => ({ lat: asCoord(notary.lat)!, lng: asCoord(notary.lng)! })),
+  );
+
+const notaries = [...rawNotaries]
+  .map((notary) => {
+    const lat = asCoord(notary.lat);
+    const lng = asCoord(notary.lng);
+    const exactCity = Boolean(locationLabel && (notary.comune || '').toLowerCase() === locationLabel.toLowerCase());
+    const km =
+      searchCenter && lat !== null && lng !== null
+        ? distanceKm(searchCenter, { lat, lng })
+        : null;
+    return { ...notary, lat, lng, exactCity, distanceKm: km };
+  })
+  .sort((a, b) => {
+    if (a.exactCity !== b.exactCity) return a.exactCity ? -1 : 1;
+    const bandA = a.distanceKm == null ? 999 : Math.floor(a.distanceKm / 10);
+    const bandB = b.distanceKm == null ? 999 : Math.floor(b.distanceKm / 10);
+    if (bandA !== bandB) return bandA - bandB;
+    if ((a.distanceKm == null) !== (b.distanceKm == null)) return a.distanceKm == null ? 1 : -1;
+    if (a.distanceKm != null && b.distanceKm != null && a.distanceKm !== b.distanceKm) {
+      return a.distanceKm - b.distanceKm;
+    }
+    return a.full_name.localeCompare(b.full_name, 'it');
+  });
+
+const exactCityCount = notaries.filter((notary) => notary.exactCity).length;
+const withCoordsCount = notaries.filter((notary) => notary.lat != null && notary.lng != null).length;
 const hasFilters = Boolean(q || comune || servizio);
 const noindex = hasFilters || shouldNoindexSearch(Astro.url);
 const preventivoBase = `/preventivo?step=${servizio ? '2' : '1'}${servizio ? `&servizio=${encodeURIComponent(servizio)}` : ''}${comune ? `&comune=${encodeURIComponent(comune)}` : ''}`;
+
+const mapPoints = notaries
+  .filter((notary) => notary.lat != null && notary.lng != null)
+  .map((notary, index) => ({
+    id: notary.id,
+    name: titleCase(notary.full_name),
+    slug: notary.source_slug,
+    address: [notary.address, notary.comune ? titleCase(notary.comune) : null].filter(Boolean).join(' · '),
+    lat: notary.lat as number,
+    lng: notary.lng as number,
+    rank: notaries.findIndex((item) => item.id === notary.id) + 1,
+    exactCity: notary.exactCity,
+  }));
 ---
 <BaseLayout title={title} noindex={noindex} canonicalPath="/notai">
   <section class="search-results-hero">
@@ -36,14 +90,13 @@ const preventivoBase = `/preventivo?step=${servizio ? '2' : '1'}${servizio ? `&s
         ? `Trova studi notarili nella zona, verifica i contatti e invia una richiesta di preventivo per ${serviceName.toLowerCase()}.`
         : 'Cerca per nome, città o zona e apri la scheda del notaio per contatti, mappa e preventivo.'}
     </p>
-    {service && (
-      <div class="result-context">
-        <span><strong>{euro(service.price_avg_cents)}</strong> media indicativa nazionale</span>
-        <span><strong>{notaries.length}</strong> notai trovati</span>
-        {locationLabel && <span><strong>{exactCityCount}</strong> nel comune cercato</span>}
-        <a href={`/quanto-costa/${service.slug}`}>Guida alla pratica</a>
-      </div>
-    )}
+    <div class="result-context">
+      {service && <span><strong>{euro(service.price_avg_cents)}</strong> media indicativa nazionale</span>}
+      <span><strong>{notaries.length}</strong> notai trovati</span>
+      {locationLabel && <span><strong>{exactCityCount}</strong> nel comune cercato</span>}
+      <span><strong>{withCoordsCount}</strong> in mappa</span>
+      {service && <a href={`/quanto-costa/${service.slug}`}>Guida alla pratica</a>}
+    </div>
   </section>
 
   <section class="section">
@@ -56,32 +109,44 @@ const preventivoBase = `/preventivo?step=${servizio ? '2' : '1'}${servizio ? `&s
       </div>
     </form>
 
-    <div class="list result-list">
-      {notaries.map((notary, index) => (
-        <article class="card notary-result-row">
-          <div>
-            <div class="result-title-row">
-              <span class="result-rank">{index + 1}</span>
-              <h3>{titleCase(notary.full_name)}</h3>
-            </div>
-            <address>
-              {notary.address || 'Indirizzo non disponibile'}
-              {notary.comune && ` · ${titleCase(notary.comune)}`}
-            </address>
-            <div class="result-badges">
-              {notary.is_official_notariato && <span>Fonte ufficiale Notariato</span>}
-              {locationLabel && (notary.comune || '').toLowerCase() === locationLabel.toLowerCase() && <span>Nel comune cercato</span>}
-              {notary.district && <span>Distretto {notary.district}</span>}
-              {service && <span>{serviceName}: disponibilità da confermare</span>}
-            </div>
-          </div>
-          <div class="actions">
-            {notary.phone && <a class="btn navy" href={`tel:${notary.phone}`}>Chiama</a>}
-            <a class="btn blue" href={`${preventivoBase}&notary=${notary.id}`}>Preventivo</a>
-            <a class="btn secondary" href={`/notai/${notary.source_slug}`}>Scheda</a>
-          </div>
-        </article>
-      ))}
+    <div class="listing-layout">
+      <div class="list result-list">
+        {notaries.map((notary, index) => {
+          const distanceLabel = formatDistanceKm(notary.distanceKm);
+          return (
+            <article class="card notary-result-row" id={`notary-${notary.id}`}>
+              <div>
+                <div class="result-title-row">
+                  <span class="result-rank">{index + 1}</span>
+                  <h3>{titleCase(notary.full_name)}</h3>
+                </div>
+                <address>
+                  {notary.address || 'Indirizzo non disponibile'}
+                  {notary.comune && ` · ${titleCase(notary.comune)}`}
+                </address>
+                <div class="result-badges">
+                  {notary.is_official_notariato && <span>Fonte ufficiale Notariato</span>}
+                  {notary.exactCity && <span>Nel comune cercato</span>}
+                  {distanceLabel && <span class="geo-signal">A circa {distanceLabel}</span>}
+                  {notary.lat != null && notary.lng != null
+                    ? <span class="geo-signal">In mappa</span>
+                    : <span>Coordinate da completare</span>}
+                  {notary.district && <span>Distretto {notary.district}</span>}
+                  {service && <span>{serviceName}: disponibilità da confermare</span>}
+                </div>
+              </div>
+              <div class="actions">
+                {notary.phone && <a class="btn navy" href={`tel:${notary.phone}`}>Chiama</a>}
+                <a class="btn blue" href={`${preventivoBase}&notary=${notary.id}`}>Preventivo</a>
+                <a class="btn secondary" href={`/notai/${notary.source_slug}`}>Scheda</a>
+              </div>
+            </article>
+          );
+        })}
+        {!notaries.length && <div class="notice">Nessun notaio trovato con questi filtri.</div>}
+      </div>
+
+      <NotaiListingMap points={mapPoints} locationLabel={locationLabel} />
     </div>
   </section>
 </BaseLayout>
