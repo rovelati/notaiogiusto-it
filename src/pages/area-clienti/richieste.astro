@@ -1,4 +1,5 @@
 ---
+import ClientAreaNav from '../../components/ClientAreaNav.astro';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { getClientEmail } from '../../lib/client-auth';
 import { titleCase } from '../../lib/format';
@@ -18,10 +19,7 @@ const requests = await listQuoteRequestsByEmail(email, 50);
       <h1>Le tue richieste</h1>
       <p>Accesso come <strong>{email}</strong>. Qui trovi lo storico dei preventivi inviati.</p>
     </div>
-    <div class="admin-toolbar">
-      <a class="btn blue" href="/preventivo">Nuova richiesta</a>
-      <a class="btn secondary" href="/area-clienti/esci">Esci</a>
-    </div>
+    <ClientAreaNav current="richieste" />
 
     <div class="list">
       {requests.map((item) => (

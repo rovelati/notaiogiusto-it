@@ -1,0 +1,74 @@
+---
+import ClientAreaNav from '../../../components/ClientAreaNav.astro';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { getClientEmail } from '../../../lib/client-auth';
+import { CATASTO_RECOVERY_LINKS, PROPERTY_USE_CASES } from '../../../lib/properties';
+
+const email = getClientEmail(Astro.cookies);
+if (!email) return Astro.redirect('/area-clienti/accedi');
+---
+<BaseLayout title="Nuovo immobile | Area clienti" noindex={true}>
+  <section class="section">
+    <div class="section-heading">
+      <span class="eyebrow">Fascicolo immobili</span>
+      <h1>Aggiungi un immobile</h1>
+      <p>Inserisci i dati catastali che hai già o che recuperi dai siti ufficiali. Potrai aggiornarli in qualsiasi momento.</p>
+    </div>
+    <ClientAreaNav current="immobili" />
+
+    <div class="funnel-stack">
+      <div class="card funnel-card recovery-card">
+        <h2>Link utili per recuperare i dati</h2>
+        <div class="list">
+          {CATASTO_RECOVERY_LINKS.map((link) => (
+            <a class="recovery-link" href={link.url} target="_blank" rel="nofollow noopener">
+              <strong>{link.title}</strong>
+              <span>{link.note}</span>
+            </a>
+          ))}
+        </div>
+      </div>
+
+      <form class="card funnel-card" method="post" action="/api/client-property">
+        <input type="hidden" name="action" value="create" />
+        <h2>Dati immobile</h2>
+        <div class="funnel-grid">
+          <label>Nome / nickname <input required name="nickname" placeholder="Es. Casa Milano" /></label>
+          <label>Comune <input name="comune" placeholder="Es. Milano" /></label>
+          <label>Provincia <input name="province" placeholder="Es. MI" maxlength="2" /></label>
+          <label>CAP <input name="cap" placeholder="Es. 20121" /></label>
+        </div>
+        <label>Indirizzo <input name="address" placeholder="Via, civico" /></label>
+        <h3>Dati catastali</h3>
+        <div class="funnel-grid">
+          <label>Foglio <input name="foglio" /></label>
+          <label>Particella <input name="particella" /></label>
+          <label>Subalterno <input name="subalterno" /></label>
+          <label>Sezione <input name="sezione" /></label>
+          <label>Categoria <input name="categoria_catastale" placeholder="Es. A/2" /></label>
+          <label>Rendita catastale (€) <input name="rendita_catastale" placeholder="Es. 850,00" /></label>
+          <label>Quota possesso <input name="quota_possesso" placeholder="Es. 100% / 1/2" /></label>
+          <label>Titolo / provenienza <input name="titolo_provenienza" placeholder="Es. compravendita 2019" /></label>
+        </div>
+        <label>Note <textarea name="notes" placeholder="Ulteriori dettagli utili per 730, atto, successione..."></textarea></label>
+        <h3>Utilizzabile per</h3>
+        <div class="use-case-grid">
+          {PROPERTY_USE_CASES.map((item) => (
+            <label class="check-inline">
+              <input type="checkbox" name="usable_for" value={item.id} checked={item.id === '730' || item.id === 'acquisto_vendita'} />
+              <span>{item.label}</span>
+            </label>
+          ))}
+        </div>
+        <label class="check-inline share-toggle">
+          <input type="checkbox" name="shareable" value="1" checked />
+          <span>Condivisibile nelle richieste di preventivo e pratiche</span>
+        </label>
+        <div class="funnel-actions">
+          <button class="btn blue" type="submit">Salva immobile</button>
+          <a class="btn secondary" href="/area-clienti/immobili">Annulla</a>
+        </div>
+      </form>
+    </div>
+  </section>
+</BaseLayout>

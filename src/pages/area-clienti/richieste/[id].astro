@@ -1,8 +1,10 @@
 ---
+import ClientAreaNav from '../../../components/ClientAreaNav.astro';
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import { getClientEmail } from '../../../lib/client-auth';
 import { titleCase } from '../../../lib/format';
 import { getQuoteRecipients, getQuoteRequestForEmail } from '../../../lib/notai';
+import { cadastralSummary, listPropertiesForQuoteRequest } from '../../../lib/properties';
 
 const email = getClientEmail(Astro.cookies);
 if (!email) {
@@ -14,8 +16,12 @@ const request = await getQuoteRequestForEmail(id, email);
 if (!request) {
   return Astro.redirect('/area-clienti/richieste');
 }
-const recipients = await getQuoteRecipients(request.id);
+const [recipients, linkedProperties] = await Promise.all([
+  getQuoteRecipients(request.id),
+  listPropertiesForQuoteRequest(request.id),
+]);
 const details = request.case_details || {};
+const snapshot = Array.isArray(details.properties_snapshot) ? details.properties_snapshot : [];
 ---
 <BaseLayout title={`${request.service_name} | Area clienti`} noindex={true}>
   <section class="section">
@@ -28,6 +34,7 @@ const details = request.case_details || {};
         · stato <strong>{request.status}</strong>
       </p>
     </div>
+    <ClientAreaNav current="richieste" />
 
     <div class="funnel-stack">
       <div class="card funnel-card">
@@ -43,6 +50,26 @@ const details = request.case_details || {};
           <div><span>Origine servizio</span><strong>Richiesto dall’utente</strong></div>
         </div>
         {request.requester_message && <p class="summary-message"><strong>Messaggio:</strong> {request.requester_message}</p>}
+      </div>
+
+      <div class="card funnel-card">
+        <h2>Immobili allegati</h2>
+        {linkedProperties.length || snapshot.length ? (
+          <ul class="summary-notaries">
+            {(linkedProperties.length ? linkedProperties : snapshot).map((item: any) => (
+              <li>
+                <strong>{item.nickname}</strong>
+                <span>
+                  {'foglio' in item || 'particella' in item
+                    ? cadastralSummary(item)
+                    : [item.foglio && `Fg. ${item.foglio}`, item.particella && `Part. ${item.particella}`, item.subalterno && `Sub. ${item.subalterno}`].filter(Boolean).join(' · ')}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div class="notice">Nessun immobile del fascicolo allegato a questa richiesta.</div>
+        )}
       </div>
 
       <div class="card funnel-card">

@@ -1,7 +1,13 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getClientEmail } from '../../lib/client-auth';
 import { euro, titleCase } from '../../lib/format';
 import { getAllServices, getNotariesByIds, getService, searchNotaries } from '../../lib/notai';
+import {
+  cadastralSummary,
+  getPropertiesByIdsForEmail,
+  listShareableClientProperties,
+} from '../../lib/properties';
 
 const params = Astro.url.searchParams;
 const step = Math.min(4, Math.max(1, Number(params.get('step') || '1') || 1));
@@ -19,13 +25,20 @@ const selectedIds = [...new Set([
   ...params.getAll('notary_ids').map((value) => value.trim()),
   ...(params.get('notary') || '').split(',').map((value) => value.trim()),
 ].filter(Boolean))].slice(0, 3);
+const selectedPropertyIds = [...new Set(params.getAll('property_ids').map((value) => value.trim()).filter(Boolean))].slice(0, 10);
+const clientEmail = getClientEmail(Astro.cookies);
+const fascicoloEmail = (email || clientEmail || '').trim().toLowerCase();
 
-const [services, service, selectedNotaries, candidates] = await Promise.all([
+const [services, service, selectedNotaries, candidates, shareableProperties, selectedProperties] = await Promise.all([
   getAllServices(),
   serviceSlug ? getService(serviceSlug) : Promise.resolve(null),
   getNotariesByIds(selectedIds),
   step >= 3 && comune
     ? searchNotaries({ comune, limit: 18 })
+    : Promise.resolve([]),
+  fascicoloEmail ? listShareableClientProperties(fascicoloEmail) : Promise.resolve([]),
+  fascicoloEmail && selectedPropertyIds.length
+    ? getPropertiesByIdsForEmail(selectedPropertyIds, fascicoloEmail)
     : Promise.resolve([]),
 ]);
 
@@ -44,7 +57,7 @@ for (const notary of [...selectedNotaries, ...candidates]) {
 }
 const notaryChoices = [...candidateMap.values()];
 
-function hiddenFields(includeNotaries = true) {
+function hiddenFields(includeNotaries = true, includeProperties = true) {
   const pairs: Array<[string, string]> = [];
   const scalars: Array<[string, string]> = [
     ['servizio', serviceSlug],
@@ -63,6 +76,9 @@ function hiddenFields(includeNotaries = true) {
   }
   if (includeNotaries) {
     for (const id of selectedIds) pairs.push(['notary_ids', id]);
+  }
+  if (includeProperties) {
+    for (const id of selectedPropertyIds) pairs.push(['property_ids', id]);
   }
   return pairs;
 }
@@ -161,6 +177,37 @@ const canGoStep4 = Boolean(canGoStep3 && selectedNotaries.length > 0 && selected
           </label>
         </div>
         <label>Descrivi la pratica <textarea name="message" placeholder="Es. acquisto prima casa, mutuo già deliberato, tempi desiderati...">{message}</textarea></label>
+
+        <div class="property-attach">
+          <h3>Immobili del fascicolo da condividere</h3>
+          {shareableProperties.length ? (
+            <>
+              <p class="helper-text">Seleziona gli immobili i cui dati catastali vuoi allegare a questa pratica (es. 730, compravendita, successione).</p>
+              <div class="list">
+                {shareableProperties.map((property) => (
+                  <label class={`notary-pick ${selectedPropertyIds.includes(property.id) ? 'is-selected' : ''}`}>
+                    <input
+                      type="checkbox"
+                      name="property_ids"
+                      value={property.id}
+                      checked={selectedPropertyIds.includes(property.id)}
+                    />
+                    <span>
+                      <strong>{property.nickname}</strong>
+                      <em>{cadastralSummary(property)}{property.comune ? ` · ${titleCase(property.comune)}` : ''}</em>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </>
+          ) : (
+            <p class="helper-text">
+              Nessun immobile condivisibile nel fascicolo.
+              <a href="/area-clienti/immobili/nuovo">Aggiungine uno</a> (serve accesso area clienti con la stessa email).
+            </p>
+          )}
+        </div>
+
         <div class="funnel-actions">
           <a class="btn secondary" href={`/preventivo?step=1&servizio=${encodeURIComponent(serviceSlug)}`}>Indietro</a>
           <button class="btn blue" type="submit" disabled={!canGoStep2}>Scegli i notai</button>
@@ -242,6 +289,19 @@ const canGoStep4 = Boolean(canGoStep3 && selectedNotaries.length > 0 && selected
             <div><span>Documenti</span><strong>{documentsReady || '—'}</strong></div>
           </div>
           {message && <p class="summary-message"><strong>Dettagli:</strong> {message}</p>}
+          <h3>Immobili allegati ({selectedProperties.length})</h3>
+          {selectedProperties.length ? (
+            <ul class="summary-notaries">
+              {selectedProperties.map((property) => (
+                <li>
+                  <strong>{property.nickname}</strong>
+                  <span>{cadastralSummary(property)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p class="helper-text">Nessun immobile allegato dal fascicolo.</p>
+          )}
           <h3>Notai selezionati ({selectedNotaries.length}/3)</h3>
           <ul class="summary-notaries">
             {selectedNotaries.map((notary) => (
@@ -267,6 +327,7 @@ const canGoStep4 = Boolean(canGoStep3 && selectedNotaries.length > 0 && selected
             <input type="hidden" name="parties" value={parties} />
             <input type="hidden" name="documents_ready" value={documentsReady} />
             {selectedNotaries.map((notary) => <input type="hidden" name="notary_ids" value={notary.id} />)}
+            {selectedProperties.map((property) => <input type="hidden" name="property_ids" value={property.id} />)}
             <p>Conferma per salvare la richiesta nel database. L’invio email ai notai arriverà nel passo successivo.</p>
             <div class="funnel-actions">
               <a class="btn secondary" href={stepHref(3)}>Indietro</a>

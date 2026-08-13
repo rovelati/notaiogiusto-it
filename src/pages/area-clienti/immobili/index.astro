@@ -1,0 +1,91 @@
+---
+import ClientAreaNav from '../../../components/ClientAreaNav.astro';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { getClientEmail } from '../../../lib/client-auth';
+import { titleCase } from '../../../lib/format';
+import {
+  CATASTO_RECOVERY_LINKS,
+  PROPERTY_USE_CASES,
+  cadastralSummary,
+  listClientProperties,
+} from '../../../lib/properties';
+
+const email = getClientEmail(Astro.cookies);
+if (!email) return Astro.redirect('/area-clienti/accedi');
+
+const properties = await listClientProperties(email);
+const useLabel = Object.fromEntries(PROPERTY_USE_CASES.map((item) => [item.id, item.label]));
+---
+<BaseLayout title="I tuoi immobili | Area clienti" noindex={true} canonicalPath="/area-clienti/immobili">
+  <section class="section">
+    <div class="section-heading">
+      <span class="eyebrow">Fascicolo immobili</span>
+      <h1>Dati catastali e immobili riusabili</h1>
+      <p>
+        Salva foglio, particella, subalterno, rendita e quota possesso. Potrai riusarli per 730, IMU,
+        compravendita, successione e altre pratiche, e condividerli nelle richieste di preventivo.
+      </p>
+    </div>
+    <ClientAreaNav current="immobili" />
+    <div class="admin-toolbar">
+      <a class="btn blue" href="/area-clienti/immobili/nuovo">Aggiungi immobile</a>
+    </div>
+
+    <div class="card funnel-card recovery-card">
+      <h2>Recupera i dati su siti ufficiali</h2>
+      <p>
+        NotaioGiusto non interroga automaticamente il catasto. Usa i canali ufficiali, poi inserisci o aggiorna i dati qui.
+        Provenienza attuale: inserimento manuale.
+      </p>
+      <div class="list">
+        {CATASTO_RECOVERY_LINKS.map((link) => (
+          <a class="recovery-link" href={link.url} target="_blank" rel="nofollow noopener">
+            <strong>{link.title}</strong>
+            <span>{link.note}</span>
+          </a>
+        ))}
+      </div>
+    </div>
+
+    <div class="list">
+      {properties.map((property) => (
+        <article class="card admin-request">
+          <div class="admin-request__head">
+            <div>
+              <h2>{property.nickname}</h2>
+              <p>
+                {property.address || 'Indirizzo non indicato'}
+                {property.comune ? ` · ${titleCase(property.comune)}` : ''}
+                {property.province ? ` (${property.province.toUpperCase()})` : ''}
+              </p>
+            </div>
+            <span class={`pill ${property.shareable ? 'green' : 'gold'}`}>
+              {property.shareable ? 'Condivisibile' : 'Privato'}
+            </span>
+          </div>
+          <div class="summary-grid">
+            <div><span>Catasto</span><strong>{cadastralSummary(property)}</strong></div>
+            <div><span>Rendita</span><strong>{property.rendita_catastale ? `€ ${property.rendita_catastale}` : '—'}</strong></div>
+            <div><span>Quota</span><strong>{property.quota_possesso || '—'}</strong></div>
+            <div><span>Fonte dato</span><strong>{property.data_source}</strong></div>
+          </div>
+          <div class="result-badges">
+            {(property.usable_for || []).map((use) => <span>{useLabel[use] || use}</span>)}
+            {!(property.usable_for || []).length && <span>Nessun uso indicato</span>}
+          </div>
+          <div class="funnel-actions">
+            <a class="btn secondary" href={`/area-clienti/immobili/${property.id}`}>Apri / modifica</a>
+          </div>
+        </article>
+      ))}
+      {!properties.length && (
+        <div class="notice">
+          Nessun immobile nel fascicolo.
+          <div class="funnel-actions">
+            <a class="btn blue" href="/area-clienti/immobili/nuovo">Inserisci il primo immobile</a>
+          </div>
+        </div>
+      )}
+    </div>
+  </section>
+</BaseLayout>

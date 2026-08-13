@@ -174,11 +174,24 @@ textarea { min-height: 120px; resize: vertical; }
 .quote-box .btn + .helper-text { margin-top: 14px; }
 .quote-box .btn.secondary { margin-top: 10px; width: 100%; }
 .notice a { color: var(--brand); font-weight: 900; word-break: break-all; }
+.client-nav { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 22px; }
+.client-nav a { min-height: 40px; padding: 8px 14px; border: 1px solid #d8e2ef; border-radius: 999px; background: #fff; color: #344054; font-weight: 850; }
+.client-nav a.is-active { border-color: #b7d7ff; background: #f3f8ff; color: var(--brand); }
+.recovery-card p { margin: -4px 0 16px; color: #475467; }
+.recovery-link { display: grid; gap: 4px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 8px; background: #fbfdff; }
+.recovery-link strong { color: var(--brand); }
+.recovery-link span { color: #667085; font-size: 15px; }
+.use-case-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 8px 0 16px; }
+.check-inline { display: flex; align-items: center; gap: 10px; font-weight: 800; color: #344054; }
+.check-inline input { width: 18px; min-height: 18px; }
+.share-toggle { margin: 8px 0 4px; }
+.property-attach { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); }
+.property-attach h3 { margin: 0 0 8px; font-size: 22px; }
 @media (max-width: 900px) {
   .site-header { align-items: flex-start; }
   .nav { gap: 12px; flex-wrap: wrap; justify-content: flex-end; font-size: 14px; }
   .brand strong { font-size: 19px; }
-  .hero, .two-col, .form-grid, .grid, .service-layout, .info-grid, .hero-summary, .notary-hero__inner, .notary-layout, .contact-grid, .service-chip-grid, .notary-result-row, .funnel-grid, .summary-grid { grid-template-columns: 1fr; }
+  .hero, .two-col, .form-grid, .grid, .service-layout, .info-grid, .hero-summary, .notary-hero__inner, .notary-layout, .contact-grid, .service-chip-grid, .notary-result-row, .funnel-grid, .summary-grid, .use-case-grid { grid-template-columns: 1fr; }
   .summary-notaries li, .admin-request__head { flex-direction: column; }
   .side-stack, .notary-side { position: static; }
   body:has(.sticky-actions) { padding-bottom: 86px; }

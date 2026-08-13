@@ -1,6 +1,10 @@
 import type { APIRoute } from 'astro';
 import { createHash } from 'node:crypto';
 import { query } from '../../lib/db';
+import {
+  getPropertiesByIdsForEmail,
+  linkPropertiesToQuoteRequest,
+} from '../../lib/properties';
 
 export const prerender = false;
 
@@ -12,6 +16,10 @@ function collectNotaryIds(form: FormData) {
   const fromLegacy = String(form.get('target_notary_id') || '').trim();
   const ids = [...fromMulti, ...fromCsv, fromLegacy].filter(Boolean);
   return [...new Set(ids)].slice(0, 3);
+}
+
+function collectPropertyIds(form: FormData) {
+  return [...new Set(form.getAll('property_ids').map((value) => String(value || '').trim()).filter(Boolean))].slice(0, 10);
 }
 
 export const POST: APIRoute = async ({ request, redirect }) => {
@@ -28,6 +36,7 @@ export const POST: APIRoute = async ({ request, redirect }) => {
   const parties = String(form.get('parties') || '').trim();
   const documentsReady = String(form.get('documents_ready') || '').trim();
   const notaryIds = collectNotaryIds(form);
+  const propertyIds = collectPropertyIds(form);
 
   if (!email.includes('@')) {
     return new Response('Email non valida', { status: 400 });
@@ -37,6 +46,10 @@ export const POST: APIRoute = async ({ request, redirect }) => {
     return new Response('Servizio obbligatorio', { status: 400 });
   }
 
+  const linkedProperties = propertyIds.length
+    ? await getPropertiesByIdsForEmail(propertyIds, email)
+    : [];
+
   const hash = createHash('sha256')
     .update(
       [
@@ -45,6 +58,7 @@ export const POST: APIRoute = async ({ request, redirect }) => {
         comune.toLowerCase(),
         message.slice(0, 120).toLowerCase(),
         notaryIds.slice().sort().join(','),
+        linkedProperties.map((item) => item.id).sort().join(','),
       ].join('|'),
     )
     .digest('hex');
@@ -79,6 +93,23 @@ export const POST: APIRoute = async ({ request, redirect }) => {
     parties: parties || null,
     documents_ready: documentsReady || null,
     selected_notary_ids: notaryIds,
+    selected_property_ids: linkedProperties.map((item) => item.id),
+    properties_snapshot: linkedProperties.map((item) => ({
+      id: item.id,
+      nickname: item.nickname,
+      address: item.address,
+      comune: item.comune,
+      province: item.province,
+      foglio: item.foglio,
+      particella: item.particella,
+      subalterno: item.subalterno,
+      sezione: item.sezione,
+      categoria_catastale: item.categoria_catastale,
+      rendita_catastale: item.rendita_catastale,
+      quota_possesso: item.quota_possesso,
+      usable_for: item.usable_for,
+      data_source: item.data_source,
+    })),
     service_requested_by_user: true,
     service_source: 'user_request',
   };
@@ -131,6 +162,10 @@ export const POST: APIRoute = async ({ request, redirect }) => {
         [quoteId, notary.id],
       );
     }
+  }
+
+  if (quoteId && linkedProperties.length) {
+    await linkPropertiesToQuoteRequest(quoteId, linkedProperties.map((item) => item.id));
   }
 
   return redirect('/grazie', 303);

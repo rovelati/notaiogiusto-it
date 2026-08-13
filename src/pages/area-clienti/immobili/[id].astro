@@ -1,0 +1,92 @@
+---
+import ClientAreaNav from '../../../components/ClientAreaNav.astro';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { getClientEmail } from '../../../lib/client-auth';
+import {
+  CATASTO_RECOVERY_LINKS,
+  PROPERTY_USE_CASES,
+  getClientProperty,
+} from '../../../lib/properties';
+
+const email = getClientEmail(Astro.cookies);
+if (!email) return Astro.redirect('/area-clienti/accedi');
+
+const property = await getClientProperty(Astro.params.id || '', email);
+if (!property) return Astro.redirect('/area-clienti/immobili');
+const selected = new Set(property.usable_for || []);
+---
+<BaseLayout title={`${property.nickname} | Fascicolo immobili`} noindex={true}>
+  <section class="section">
+    <div class="section-heading">
+      <span class="eyebrow">Immobile</span>
+      <h1>{property.nickname}</h1>
+      <p>Fonte dato: <strong>{property.data_source}</strong>. Nessun accesso automatico al catasto: aggiorna i campi dopo averli verificati ufficialmente.</p>
+    </div>
+    <ClientAreaNav current="immobili" />
+
+    <div class="funnel-stack">
+      <div class="card funnel-card recovery-card">
+        <h2>Recupera o verifica su siti ufficiali</h2>
+        <div class="list">
+          {CATASTO_RECOVERY_LINKS.map((link) => (
+            <a class="recovery-link" href={link.url} target="_blank" rel="nofollow noopener">
+              <strong>{link.title}</strong>
+              <span>{link.note}</span>
+            </a>
+          ))}
+        </div>
+      </div>
+
+      <form class="card funnel-card" method="post" action="/api/client-property">
+        <input type="hidden" name="action" value="update" />
+        <input type="hidden" name="id" value={property.id} />
+        <h2>Modifica dati</h2>
+        <div class="funnel-grid">
+          <label>Nome / nickname <input required name="nickname" value={property.nickname} /></label>
+          <label>Comune <input name="comune" value={property.comune || ''} /></label>
+          <label>Provincia <input name="province" value={property.province || ''} maxlength="2" /></label>
+          <label>CAP <input name="cap" value={property.cap || ''} /></label>
+        </div>
+        <label>Indirizzo <input name="address" value={property.address || ''} /></label>
+        <h3>Dati catastali</h3>
+        <div class="funnel-grid">
+          <label>Foglio <input name="foglio" value={property.foglio || ''} /></label>
+          <label>Particella <input name="particella" value={property.particella || ''} /></label>
+          <label>Subalterno <input name="subalterno" value={property.subalterno || ''} /></label>
+          <label>Sezione <input name="sezione" value={property.sezione || ''} /></label>
+          <label>Categoria <input name="categoria_catastale" value={property.categoria_catastale || ''} /></label>
+          <label>Rendita catastale (€) <input name="rendita_catastale" value={property.rendita_catastale || ''} /></label>
+          <label>Quota possesso <input name="quota_possesso" value={property.quota_possesso || ''} /></label>
+          <label>Titolo / provenienza <input name="titolo_provenienza" value={property.titolo_provenienza || ''} /></label>
+        </div>
+        <label>Note <textarea name="notes">{property.notes || ''}</textarea></label>
+        <h3>Utilizzabile per</h3>
+        <div class="use-case-grid">
+          {PROPERTY_USE_CASES.map((item) => (
+            <label class="check-inline">
+              <input type="checkbox" name="usable_for" value={item.id} checked={selected.has(item.id)} />
+              <span>{item.label}</span>
+            </label>
+          ))}
+        </div>
+        <label class="check-inline share-toggle">
+          <input type="checkbox" name="shareable" value="1" checked={property.shareable} />
+          <span>Condivisibile nelle richieste di preventivo e pratiche</span>
+        </label>
+        <div class="funnel-actions">
+          <button class="btn blue" type="submit">Salva modifiche</button>
+          <a class="btn secondary" href="/area-clienti/immobili">Torna all’elenco</a>
+        </div>
+      </form>
+
+      <form class="card funnel-card" method="post" action="/api/client-property" onsubmit="return confirm('Archiviare questo immobile dal fascicolo?');">
+        <input type="hidden" name="action" value="archive" />
+        <input type="hidden" name="id" value={property.id} />
+        <input type="hidden" name="nickname" value={property.nickname} />
+        <h2>Archivia</h2>
+        <p>L’immobile non comparirà più nel fascicolo attivo né nelle nuove condivisioni.</p>
+        <button class="btn secondary" type="submit">Archivia immobile</button>
+      </form>
+    </div>
+  </section>
+</BaseLayout>

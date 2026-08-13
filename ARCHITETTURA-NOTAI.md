@@ -273,7 +273,8 @@ MAILGUN_BASE_URL=https://api.eu.mailgun.net
 - pagina risultati notai;
 - pagina scheda notaio;
 - form richiesta preventivo;
-- area clienti con accesso magic-link e storico richieste (`/area-clienti`);
+- area clienti con accesso magic-link, storico richieste e fascicolo immobili/dati catastali (`/area-clienti`, `/area-clienti/immobili`);
+- link ufficiali AdE/Sister per recupero visure (nessuna interrogazione automatica catasto nel MVP);
 - email conferma al richiedente;
 - anti-duplicato richieste ravvicinate;
 - pagine SEO `quanto-costa`;

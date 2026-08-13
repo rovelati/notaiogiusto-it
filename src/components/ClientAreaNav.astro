@@ -1,0 +1,14 @@
+---
+const { current = 'richieste' } = Astro.props;
+const items = [
+  { id: 'richieste', href: '/area-clienti/richieste', label: 'Richieste' },
+  { id: 'immobili', href: '/area-clienti/immobili', label: 'Immobili' },
+];
+---
+<nav class="client-nav">
+  {items.map((item) => (
+    <a class={item.id === current ? 'is-active' : ''} href={item.href}>{item.label}</a>
+  ))}
+  <a href="/preventivo">Nuovo preventivo</a>
+  <a href="/area-clienti/esci">Esci</a>
+</nav>

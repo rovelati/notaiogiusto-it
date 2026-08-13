@@ -31,6 +31,17 @@ Nel file `.env`:
 python3 import_notariato.py --apply-schema --dry-run --limit 0
 ```
 
+Schema fascicolo immobili clienti:
+
+```bash
+psql "$DATABASE_URL" -f schema_client_properties.sql
+```
+
+Tabelle:
+
+- `notai.client_properties`
+- `notai.quote_request_properties`
+
 ## Test Non Aggressivo
 
 Singola scheda:

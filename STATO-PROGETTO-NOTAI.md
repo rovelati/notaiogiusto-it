@@ -1,6 +1,6 @@
 # Stato progetto NotaioGiusto.it
 
-Aggiornato: 2026-08-13 (blocco area clienti)
+Aggiornato: 2026-08-13 (blocco fascicolo immobili / dati catastali)
 
 ## Obiettivo
 
@@ -37,7 +37,9 @@ Schema PostgreSQL `notai` con:
 - `notai.notary_claims`: presa possesso profilo;
 - `notai.notary_reviews` e `notai.notary_review_summaries`: predisposizione recensioni Google/AI;
 - `notai.notary_metrics_daily` e `notai.notary_events`: tracking futuro;
-- `notai.content_articles`: contenuti editoriali.
+- `notai.content_articles`: contenuti editoriali;
+- `notai.client_properties`: fascicolo immobili/dati catastali del cliente;
+- `notai.quote_request_properties`: link richiesta ↔ immobili condivisi.
 
 ## Popolamento dati
 
@@ -119,8 +121,11 @@ File:
 - `src/pages/area-clienti/verifica.ts`
 - `src/pages/area-clienti/richieste.astro`
 - `src/pages/area-clienti/richieste/[id].astro`
+- `src/pages/area-clienti/immobili/*`
 - `src/pages/area-clienti/esci.ts`
 - `src/lib/client-auth.ts`
+- `src/lib/properties.ts`
+- `SCRIPT/DB/schema_client_properties.sql`
 
 Flusso MVP:
 
@@ -128,7 +133,17 @@ Flusso MVP:
 2. sistema genera link temporaneo firmato (30 minuti);
 3. finché Mailgun non è attivo, il link viene mostrato in pagina;
 4. cookie sessione httpOnly;
-5. storico richieste + dettaglio pratica/notai selezionati.
+5. storico richieste + dettaglio pratica/notai selezionati;
+6. fascicolo immobili con dati catastali riusabili.
+
+### Fascicolo immobili / dati catastali
+
+- inserimento manuale (niente accesso automatico al catasto);
+- campi: nickname, indirizzo, foglio/particella/subalterno/sezione, categoria, rendita, quota, provenienza;
+- tag uso: 730, IMU/TARI, compravendita, mutuo, successione, donazione, locazione, altro;
+- flag `shareable` per condivisione in pratiche/preventivi;
+- link ufficiali AdE/Sister/visure per recuperare i dati;
+- allegabili nel funnel preventivo e salvati in `case_details.properties_snapshot`.
 
 Secret: `AUTH_SECRET` (fallback a `ADMIN_TOKEN`).
 
@@ -154,13 +169,15 @@ npm run build
 
 Stato build: OK.
 
-Smoke test locali su `127.0.0.1:4330`:
+Stato build: OK.
 
-- `/area-clienti` → 200
-- `/area-clienti/accedi` → 200
-- `/area-clienti/richieste` senza sessione → 302 `/area-clienti/accedi`
-- magic link → storico richieste 200
-- dettaglio richiesta → 200 con notai selezionati
+Smoke test locali:
+
+- `/area-clienti/immobili` → 200
+- `/area-clienti/immobili/nuovo` → 200
+- `POST /api/client-property` → redirect dettaglio immobile
+- elenco mostra foglio/particella e tag 730
+- `/preventivo` step 2 mostra immobili del fascicolo allegabili
 
 ## Cosa manca
 
@@ -185,6 +202,8 @@ Smoke test locali su `127.0.0.1:4330`:
 ### UX/prodotto
 
 - Campi pratica specifici per tipologia (acquisto, successione, società...).
+- Upload documenti collegati all’immobile + OCR assistito.
+- Fascicolo persone/società oltre agli immobili.
 - Confronto preventivi ricevuti e stati risposta notaio.
 - Area notaio con gestione profilo, servizi, listino e lead.
 - Tracking click telefono, preventivo, percorso, scheda.
@@ -192,16 +211,18 @@ Smoke test locali su `127.0.0.1:4330`:
 
 ## File toccati in questo blocco
 
-- `src/pages/area-clienti/*` (nuovo)
-- `src/lib/client-auth.ts` (nuovo)
-- `src/lib/notai.ts`
-- `src/layouts/BaseLayout.astro`
-- `src/pages/grazie.astro`
-- `src/pages/robots.txt.ts`
-- `.env.example`
+- `SCRIPT/DB/schema_client_properties.sql` (nuovo)
+- `src/lib/properties.ts` (nuovo)
+- `src/pages/api/client-property.ts` (nuovo)
+- `src/pages/area-clienti/immobili/*` (nuovo)
+- `src/pages/api/quote-request.ts`
+- `src/pages/preventivo/index.astro`
+- `src/pages/area-clienti/*`
+- `src/components/ClientAreaNav.astro`
 - `public/styles.css`
 - `STATO-PROGETTO-NOTAI.md`
 - `ARCHITETTURA-NOTAI.md`
+- `SCRIPT/DB/README.md`
 
 ## Note per Cursor / Codex
 
