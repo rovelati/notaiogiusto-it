@@ -20,7 +20,11 @@ const staticMapUrl = notary.lat && notary.lng
 const phoneHref = notary.phone ? `tel:${notary.phone.replace(/\s+/g, '')}` : null;
 const metaDescription = `Contatti, sede, servizi e richiesta preventivo per ${notary.full_name}${notary.comune ? `, notaio a ${notary.comune}` : ''}. Profilo da fonte ufficiale Notariato.`;
 ---
-<BaseLayout title={`${notary.full_name} | Notaio a ${notary.comune || ''}`} description={metaDescription}>
+<BaseLayout
+  title={`${notary.full_name} | Notaio a ${notary.comune || ''}`}
+  description={metaDescription}
+  canonicalPath={`/notai/${notary.source_slug}`}
+>
   <section class="notary-hero">
     <div class="notary-hero__inner">
       <div>
@@ -46,7 +50,7 @@ const metaDescription = `Contatti, sede, servizi e richiesta preventivo per ${no
 
   <div class="sticky-actions">
     {phoneHref ? <a class="btn navy" href={phoneHref}>Chiama</a> : <span class="btn disabled">Telefono non disponibile</span>}
-    <a class="btn blue" href="#preventivo">Chiedi preventivo</a>
+    <a class="btn blue" href={`/preventivo?step=1&notary=${notary.id}`}>Chiedi preventivo</a>
     <a class="btn secondary" rel="nofollow" target="_blank" href={directionsUrl}>Portami lì</a>
   </div>
 
@@ -147,22 +151,17 @@ const metaDescription = `Contatti, sede, servizi e richiesta preventivo per ${no
         )}
       </div>
 
-      <form id="preventivo" class="quote-box quote-box--notary" action="/api/quote-request" method="post">
+      <div id="preventivo" class="quote-box quote-box--notary">
         <h2>Chiedi un preventivo</h2>
-        <p>Invia allo studio una richiesta chiara. Aggiungi il servizio, il comune e le tempistiche.</p>
-        <label>Servizio
-          <select name="service_slug">
-            {popularServices.map((service) => <option value={service.slug}>{service.plain_language_name || service.name}</option>)}
-          </select>
-        </label>
-        <input type="hidden" name="target_notary_id" value={notary.id} />
-        <input type="hidden" name="comune" value={notary.comune || ''} />
-        <label>Email obbligatoria <input required type="email" name="email" placeholder="nome@email.it" /></label>
-        <label>Nome <input name="name" placeholder="Facoltativo" /></label>
-        <label>Telefono <input name="phone" placeholder="Facoltativo" /></label>
-        <label>Messaggio <textarea name="message" placeholder="Es. acquisto prima casa, valore indicativo, urgenza, documenti già disponibili..."></textarea></label>
-        <button class="btn blue" type="submit">Invia richiesta al notaio</button>
-      </form>
+        <p>
+          Parte con questo notaio già selezionato. Nel funnel puoi aggiungere fino a altri 2 studi nella stessa zona
+          e completare i dati della pratica.
+        </p>
+        <a class="btn blue" href={`/preventivo?step=1&notary=${notary.id}${notary.comune ? `&comune=${encodeURIComponent(notary.comune)}` : ''}`}>
+          Avvia preventivo con questo notaio
+        </a>
+        <p class="helper-text">I servizi mostrati sopra restano distinti: ufficiali/arricchiti vs solo richiesti dall’utente.</p>
+      </div>
     </aside>
   </section>
 </BaseLayout>

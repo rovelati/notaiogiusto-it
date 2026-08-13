@@ -1,6 +1,6 @@
 # Stato progetto NotaioGiusto.it
 
-Aggiornato: 2026-08-13
+Aggiornato: 2026-08-13 (blocco funnel + admin + SEO + deploy prep)
 
 ## Obiettivo
 
@@ -13,12 +13,13 @@ Costruire un portale simile a Veterinari.org per il mercato notarile:
 ## Stack e architettura
 
 - Frontend/server: Astro con adapter Node.
-- Runtime previsto: PM2.
+- Runtime previsto: PM2 (`notaiogiusto-it`).
 - Porta locale/prod MVP: `4330`.
 - Database: PostgreSQL esistente, schema separato `notai`.
 - Directory locale: `/Users/romolovelati/Desktop/NOTAI`.
 - Directory server prevista: `/var/www/notaiogiusto-it`.
-- Dominio placeholder: `notaiogiusto.it`.
+- Dominio: `notaiogiusto.it` / `www.notaiogiusto.it`.
+- Repo GitHub privato: `rovelati/notaiogiusto-it`.
 
 Le credenziali e i file sensibili non devono essere versionati. Sono esclusi da `.gitignore`.
 
@@ -53,164 +54,75 @@ Script principali:
 - `SCRIPT/DB/schema_notai.sql`
 - `SCRIPT/DB/schema_marketplace.sql`
 
-## Arricchimenti predisposti
+## Distinzione fonti servizi
 
-### Notariato.it
+Regola operativa invariata:
 
-Fonte master ufficiale. Va considerata la fonte più affidabile per identità e iscrizione.
+- **fonte ufficiale Notariato**: identità/iscrizione;
+- **dato arricchito**: contatti/sito/recensioni da fonti terze;
+- **servizio dichiarato**: associato al notaio con evidenza;
+- **servizio probabile**: ipotesi da arricchimento, da confermare;
+- **servizio solo richiesto dall’utente**: scelto nel funnel/preventivo, non implica offerta dichiarata dello studio.
 
-### Notaioa.it
-
-Script creati:
-
-- `SCRIPT/DB/enrich_notaioa_notai.py`
-- `SCRIPT/DB/run_notaioa_notai_batch.py`
-
-Nota importante: Notaioa espone spesso servizi generici ripetuti su molti profili. Per evitare falsi positivi, non vengono automaticamente inseriti come servizi dichiarati dal singolo notaio.
-
-### Virgilio Aziende
-
-Script creati:
-
-- `SCRIPT/DB/enrich_virgilio_notai.py`
-- `SCRIPT/DB/run_virgilio_notai_batch.py`
-
-Usato come fonte alternativa a PagineGialle quando disponibile.
-
-### PagineGialle
-
-Script iniziali creati, ma la fonte ha protezioni WAF più aggressive:
-
-- `SCRIPT/DB/enrich_paginegialle_notai.py`
-- `SCRIPT/DB/run_paginegialle_notai_batch.py`
-
-Decisione attuale: evitare infrastrutture anti-WAF complesse; preferire fonti alternative e arricchimenti da siti ufficiali dei notai.
-
-## Tassonomia servizi e prezzi
-
-Creati 71 servizi notarili con range nazionali indicativi, tra cui:
-
-- acquisto prima casa;
-- acquisto casa con mutuo;
-- acquisto seconda casa;
-- successione;
-- donazione;
-- procura;
-- costituzione SRL;
-- copia conforme;
-- autentica di copia;
-- dichiarazione sostitutiva;
-- traduzione giurata;
-- cancellazione ipoteca;
-- preliminare compravendita.
-
-Script:
-
-- `SCRIPT/DB/seed_price_benchmarks.sql`
-- `SCRIPT/DB/seed_expanded_services_and_prices.sql`
-
-Nota: i prezzi sono benchmark editoriali iniziali, da affinare con fonti pubbliche, risposte reali e listini dei notai.
+Nel funnel preventivo i notai selezionati vengono etichettati come “Servizio solo richiesto”.
 
 ## MVP applicativo realizzato
 
-### Homepage
+### Homepage / listing / scheda / quanto-costa / claim
 
-File: `src/pages/index.astro`
+Restano attivi e collegati al nuovo funnel preventivo.
 
-Funzionalità:
-
-- ricerca per servizio e comune;
-- copy orientato all'utente, non tecnico;
-- servizi più cercati;
-- rimozione dei numeri come messaggio principale.
-
-### Quanto costa
+### Funnel preventivo guidato
 
 File:
 
-- `src/pages/quanto-costa/index.astro`
-- `src/pages/quanto-costa/[servizio].astro`
-- `src/pages/quanto-costa/[localita]/[servizio]/notai.astro`
-
-Funzionalità:
-
-- landing descrittiva per servizio;
-- prezzo medio/range;
-- spiegazione quando serve;
-- fattori che incidono sul prezzo;
-- documenti da preparare;
-- FAQ;
-- form preventivo.
-
-### Listing notai
-
-File: `src/pages/notai/index.astro`
-
-Funzionalità:
-
-- ricerca per nome/zona/comune;
-- se arriva un parametro `servizio`, la pagina diventa risposta alla ricerca servizio + comune;
-- ordinamento migliorato: prima il comune esatto, poi area/distretto;
-- CTA per ogni riga: chiama, preventivo, scheda;
-- badge fonte ufficiale Notariato;
-- rimozione badge inutili tipo email disponibile.
-
-### Scheda notaio
-
-File: `src/pages/notai/[slug].astro`
-
-Funzionalità:
-
-- design più istituzionale: blu/inchiostro/oro;
-- hero con fonte ufficiale Notariato;
-- barra azioni sticky/fissa mobile: chiama, chiedi preventivo, portami lì;
-- contatti e sede;
-- mappa;
-- servizi notarili popolari o associati;
-- sezione predisposta per recensioni Google + AI;
-- CTA per aggiornare/reclamare profilo.
-
-### Area notai e claim
-
-File:
-
-- `src/pages/area-notai.astro`
-- `src/pages/claim.astro`
-- `src/pages/api/claim.ts`
-
-Funzionalità MVP:
-
-- landing lato notai;
-- form claim;
-- salvataggio richiesta in DB.
-
-### Richieste preventivo
-
-File:
-
+- `src/pages/preventivo/index.astro`
 - `src/pages/api/quote-request.ts`
-- `src/pages/grazie.astro`
 
-Funzionalità:
+Flusso:
 
-- salvataggio richiesta in `notai.quote_requests`;
-- idempotency hash per limitare duplicati identici;
-- collegamento a destinatario se la richiesta parte da una scheda notaio;
-- redirect a pagina grazie.
+1. scelta servizio;
+2. dati pratica + località + contatto;
+3. selezione fino a 3 notai;
+4. riepilogo e salvataggio DB.
+
+Salvataggio:
+
+- `notai.quote_requests` con `case_details` (urgenza, valore, parti, documenti, selected_notary_ids, `service_source=user_request`);
+- fino a 3 righe in `notai.quote_request_recipients` (`match_type=selected_by_user`).
+
+### Area admin minima
+
+File:
+
+- `src/pages/admin/login.astro`
+- `src/pages/admin/richieste.astro`
+- `src/pages/admin/logout.ts`
+- `src/lib/admin.ts`
+
+Accesso con `ADMIN_TOKEN` (cookie httpOnly). Vista elenco ultime richieste + destinatari + JSON pratica.
+
+### SEO
+
+- canonical globale in `BaseLayout`;
+- `/sitemap.xml` dinamico (statiche + servizi + schede notai);
+- `/robots.txt` con disallow admin/claim/preventivo/api;
+- noindex su query inutili/filtri listing e pagine private;
+- JSON-LD `FAQPage` + `Service` su `/quanto-costa/[servizio]`.
+
+### Deploy prep
+
+- `ecosystem.config.cjs`
+- `deploy/nginx/notaiogiusto.it.conf`
+- `deploy/README.md`
+- `.env.example` aggiornato a `notaiogiusto.it` + `ADMIN_TOKEN`
 
 ## Design
 
-Aggiornata palette:
+Palette istituzionale blu/inchiostro/oro in `public/styles.css`.
+Aggiunti stili funnel e admin.
 
-- blu/inchiostro per istituzionalità;
-- oro come accento notarile;
-- rimosso il verde dominante che ricordava Veterinari.org/farmacie.
-
-CSS principale:
-
-- `public/styles.css`
-
-## Verifiche fatte
+## Verifiche fatte (questo blocco)
 
 Comando:
 
@@ -220,29 +132,28 @@ npm run build
 
 Stato: OK.
 
-Smoke test locali:
+Smoke test locali su `127.0.0.1:4330`:
 
-- `/`
-- `/quanto-costa/autentica-copia`
-- `/notai?servizio=dichiarazione-sostitutiva-atto-notorieta&comune=milano`
-- `/notai/achille-giannitti`
-
-Tutte le pagine hanno risposto `200` durante i test locali.
+- `/` → 200
+- `/preventivo` → 200
+- `/preventivo?step=2&servizio=autentica-copia&comune=Milano` → 200
+- `/preventivo?step=3...` → elenco notai con checkbox e label “Servizio solo richiesto”
+- `/quanto-costa/autentica-copia` → 200 + canonical + JSON-LD FAQPage
+- `/notai?servizio=...&comune=milano` → 200 + noindex su query
+- `/robots.txt` → 200
+- `/sitemap.xml` → 200
+- `/admin/login` → 200
+- `POST /api/quote-request` con 1 notaio → 303 `/grazie`
 
 ## Cosa manca
 
 ### Priorità alta
 
-- Deploy su server `/var/www/notaiogiusto-it`.
-- Configurazione virtual host Nginx per `notaiogiusto.it`.
-- PM2 production process.
-- Variabili ambiente production con `DATABASE_URL`.
-- Form preventivo completo con scelta multipla fino a 3 notai.
-- Invio email reale a notai e richiedente.
-- Area admin per vedere richieste preventivo.
+- Deploy reale su `/var/www/notaiogiusto-it` + Nginx + SSL + PM2.
+- Valorizzare `ADMIN_TOKEN` e `DATABASE_URL` in production `.env`.
+- Invio email reale a notai e richiedente (Mailgun).
 - Pagina 404 in stile.
-- Sitemap XML e robots.txt.
-- Canonical/noindex per query inutili o paginazioni.
+- Sitemap segmentate se il file unico diventa troppo grande.
 
 ### Dati e arricchimenti
 
@@ -256,49 +167,39 @@ Tutte le pagine hanno risposto `200` durante i test locali.
 
 ### UX/prodotto
 
-- Funnel preventivo guidato per pratica:
-  - acquisto casa;
-  - mutuo;
-  - successione;
-  - donazione;
-  - procura;
-  - società.
+- Campi pratica specifici per tipologia (acquisto, successione, società...).
 - Area utente con storico richieste.
 - Area notaio con gestione profilo, servizi, listino e lead.
 - Tracking click telefono, preventivo, percorso, scheda.
 - Dashboard statistiche per notai.
 
-### SEO
+## File toccati in questo blocco
 
-- Pagine località + servizio indicizzabili.
-- Title/description specifici per pratica e città.
-- Dati strutturati LocalBusiness/LegalService da verificare.
-- FAQ structured data per pagine Quanto Costa.
-- Contenuti editoriali sulle pratiche principali.
-- Internal linking tra servizio, città e schede notai.
-
-## Note per Cursor
-
-Il progetto è Astro server-rendered. Le query DB sono in:
-
-- `src/lib/db.ts`
+- `src/pages/preventivo/index.astro` (nuovo)
+- `src/pages/api/quote-request.ts`
+- `src/pages/admin/*` (nuovo)
+- `src/pages/robots.txt.ts` (nuovo)
+- `src/pages/sitemap.xml.ts` (nuovo)
 - `src/lib/notai.ts`
-
-Le pagine principali sono in:
-
+- `src/lib/site.ts` (nuovo)
+- `src/lib/admin.ts` (nuovo)
+- `src/layouts/BaseLayout.astro`
 - `src/pages/index.astro`
-- `src/pages/quanto-costa/[servizio].astro`
 - `src/pages/notai/index.astro`
 - `src/pages/notai/[slug].astro`
+- `src/pages/quanto-costa/[servizio].astro`
+- `src/pages/grazie.astro`
+- `public/styles.css`
+- `astro.config.mjs`
+- `.env.example`
+- `deploy/*`
+- `ARCHITETTURA-NOTAI.md`
+- `STATO-PROGETTO-NOTAI.md`
 
-Prima di modificare i dati:
+## Note per Cursor / Codex
 
-1. verificare lo schema in `SCRIPT/DB/schema_notai.sql` e `SCRIPT/DB/schema_marketplace.sql`;
-2. fare dry-run quando si aggiornano molti record;
-3. non salvare credenziali o `.env` nel repository;
-4. distinguere sempre:
-   - dati ufficiali Notariato;
-   - dati arricchiti da fonti terze;
-   - servizi dichiarati;
-   - servizi probabili;
-   - servizi solo richiesti dall'utente.
+1. Non inventare servizi dichiarati dal notaio.
+2. Non committare `.env`, SSH, API key.
+3. Dopo modifiche significative: `npm run build`, smoke test, commit, push, aggiornare questo file.
+4. Query DB in `src/lib/db.ts` e `src/lib/notai.ts`.
+5. Admin locale: impostare `ADMIN_TOKEN` nel `.env` non versionato.

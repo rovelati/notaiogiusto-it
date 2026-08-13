@@ -2,6 +2,7 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { euro, titleCase } from '../../lib/format';
 import { getService, searchNotaries } from '../../lib/notai';
+import { shouldNoindexSearch } from '../../lib/site';
 
 const q = Astro.url.searchParams.get('q') || '';
 const comune = Astro.url.searchParams.get('comune') || '';
@@ -18,8 +19,11 @@ const title = service
 const exactCityCount = locationLabel
   ? notaries.filter((notary) => (notary.comune || '').toLowerCase() === locationLabel.toLowerCase()).length
   : 0;
+const hasFilters = Boolean(q || comune || servizio);
+const noindex = hasFilters || shouldNoindexSearch(Astro.url);
+const preventivoBase = `/preventivo?step=${servizio ? '2' : '1'}${servizio ? `&servizio=${encodeURIComponent(servizio)}` : ''}${comune ? `&comune=${encodeURIComponent(comune)}` : ''}`;
 ---
-<BaseLayout title={title}>
+<BaseLayout title={title} noindex={noindex} canonicalPath="/notai">
   <section class="search-results-hero">
     <span class="eyebrow">Ricerca notai</span>
     <h1>
@@ -73,7 +77,7 @@ const exactCityCount = locationLabel
           </div>
           <div class="actions">
             {notary.phone && <a class="btn navy" href={`tel:${notary.phone}`}>Chiama</a>}
-            {service && <a class="btn blue" href={`/notai/${notary.source_slug}#preventivo`}>Preventivo</a>}
+            <a class="btn blue" href={`${preventivoBase}&notary=${notary.id}`}>Preventivo</a>
             <a class="btn secondary" href={`/notai/${notary.source_slug}`}>Scheda</a>
           </div>
         </article>

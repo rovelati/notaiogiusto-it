@@ -78,7 +78,8 @@ export async function getService(slug: string) {
   const rows = await query<Service>(
     `
     select st.id, st.slug, st.name, st.category, st.plain_language_name, st.user_intent,
-           st.seo_title, st.seo_description, st.complexity, st.remote_possible, st.requires_in_person,
+           st.seo_title, st.seo_description, st.service_scope, st.complexity,
+           st.remote_possible, st.requires_in_person, st.required_documents, st.faqs,
            spb.price_min_cents, spb.price_avg_cents, spb.price_max_cents, spb.confidence
     from notai.services_taxonomy st
     left join lateral (
@@ -94,6 +95,80 @@ export async function getService(slug: string) {
     [slug],
   );
   return rows[0] || null;
+}
+
+export async function getAllServices() {
+  return query<Pick<Service, 'id' | 'slug' | 'name' | 'plain_language_name' | 'category'>>(
+    `
+    select id, slug, name, plain_language_name, category
+    from notai.services_taxonomy
+    order by priority asc, name asc
+    `,
+  );
+}
+
+export async function getNotariesByIds(ids: string[]) {
+  const cleanIds = [...new Set(ids.map((id) => id.trim()).filter(Boolean))].slice(0, 3);
+  if (!cleanIds.length) return [] as Notary[];
+  return query<Notary>(
+    `
+    select id, source_slug, full_name, comune, district, address, cap, phone, email, pec, website,
+           lat, lng, description, official_reference_url, is_official_notariato
+    from notai.notaries
+    where status = 'published' and id = any($1::uuid[])
+    order by full_name asc
+    `,
+    [cleanIds],
+  );
+}
+
+export async function getPublishedNotarySlugs(limit = 5000) {
+  return query<{ source_slug: string; updated_at: string | null }>(
+    `
+    select source_slug, updated_at::text
+    from notai.notaries
+    where status = 'published' and coalesce(source_slug, '') <> ''
+    order by updated_at desc nulls last, full_name asc
+    limit $1
+    `,
+    [limit],
+  );
+}
+
+export type QuoteRequestRow = {
+  id: string;
+  service_slug: string | null;
+  service_name: string;
+  comune: string | null;
+  requester_email: string;
+  requester_name: string | null;
+  requester_phone: string | null;
+  requester_message: string | null;
+  case_details: Record<string, unknown> | null;
+  status: string;
+  source_url: string | null;
+  created_at: string;
+  recipient_names: string | null;
+  recipient_count: string;
+};
+
+export async function listQuoteRequests(limit = 100) {
+  return query<QuoteRequestRow>(
+    `
+    select qr.id, qr.service_slug, qr.service_name, qr.comune,
+           qr.requester_email, qr.requester_name, qr.requester_phone, qr.requester_message,
+           qr.case_details, qr.status, qr.source_url, qr.created_at::text,
+           coalesce(string_agg(n.full_name, ', ' order by n.full_name), '') as recipient_names,
+           count(qrr.id)::text as recipient_count
+    from notai.quote_requests qr
+    left join notai.quote_request_recipients qrr on qrr.quote_request_id = qr.id
+    left join notai.notaries n on n.id = qrr.notary_id
+    group by qr.id
+    order by qr.created_at desc
+    limit $1
+    `,
+    [limit],
+  );
 }
 
 export async function searchNotaries({ comune, q, limit = 12 }: { comune?: string; q?: string; limit?: number }) {

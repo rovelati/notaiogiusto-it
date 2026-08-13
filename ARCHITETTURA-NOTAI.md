@@ -201,7 +201,12 @@ Esempi servizi notarili:
 
 ## Nginx
 
-Virtual host placeholder:
+Template versionato:
+
+- `deploy/nginx/notaiogiusto.it.conf`
+- guida operativa: `deploy/README.md`
+
+Virtual host:
 
 ```nginx
 server {
@@ -221,18 +226,19 @@ server {
 }
 ```
 
-Quando il dominio sara deciso:
+Attivazione:
 
 ```bash
-ln -s /etc/nginx/sites-available/notaiogiusto.it /etc/nginx/sites-enabled/notaiogiusto.it
-nginx -t
-systemctl reload nginx
+sudo cp deploy/nginx/notaiogiusto.it.conf /etc/nginx/sites-available/notaiogiusto.it
+sudo ln -sf /etc/nginx/sites-available/notaiogiusto.it /etc/nginx/sites-enabled/notaiogiusto.it
+sudo nginx -t
+sudo systemctl reload nginx
 ```
 
 SSL:
 
 ```bash
-certbot --nginx -d notaiogiusto.it -d www.notaiogiusto.it
+sudo certbot --nginx -d notaiogiusto.it -d www.notaiogiusto.it
 ```
 
 ## Variabili Ambiente
@@ -248,12 +254,15 @@ Variabili previste:
 ```env
 SITE_URL=https://www.notaiogiusto.it
 DATABASE_URL=postgresql://...
+ADMIN_TOKEN=...
 AUTH_SECRET=...
 MAIL_FROM=info@notaiogiusto.it
 MAILGUN_API_KEY=...
 MAILGUN_DOMAIN=...
 MAILGUN_BASE_URL=https://api.eu.mailgun.net
 ```
+
+`ADMIN_TOKEN` protegge l'area minima `/admin/*` (login cookie httpOnly).
 
 ## Funzionalita MVP
 
@@ -280,9 +289,15 @@ MAILGUN_BASE_URL=https://api.eu.mailgun.net
 
 ### Lato Admin
 
+MVP attuale:
+
+- `/admin/login` con token;
+- `/admin/richieste` per leggere `quote_requests` e destinatari.
+
+Previsto:
+
 - gestione schede;
 - gestione claim;
-- gestione richieste preventivo;
 - gestione tassonomia servizi;
 - import e deduplica;
 - report email inviate;
@@ -306,10 +321,14 @@ Struttura URL proposta:
 
 Regole:
 
-- canonical puliti;
-- noindex su login, register, admin, dashboard, claim;
-- pagine paginated con noindex da `?page=2` in poi;
-- sitemap separate per:
+- canonical puliti via `BaseLayout` + `SITE_URL`;
+- noindex su login, register, admin, dashboard, claim, preventivo, grazie;
+- noindex su listing `/notai` con query di ricerca/filtro o `page>1`;
+- endpoint dinamici:
+  - `/sitemap.xml`
+  - `/robots.txt`
+- FAQ + Service JSON-LD sulle pagine `/quanto-costa/[servizio]`;
+- sitemap future da segmentare per:
   - schede notai;
   - comuni/province;
   - servizi;

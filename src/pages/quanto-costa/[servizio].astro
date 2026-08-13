@@ -56,11 +56,47 @@ const fallbackFaqs = isCopyAuthentication
       },
     ];
 const faqs = Array.isArray(service.faqs) && service.faqs.length ? service.faqs : fallbackFaqs;
-const messagePlaceholder = isCopyAuthentication
-  ? 'Es. devo autenticare 2 copie di un documento di 4 pagine, mi serve entro questa settimana...'
-  : `Es. dettagli sulla pratica di ${serviceName.toLowerCase()}, valore indicativo, tempistiche...`;
+const faqJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs
+    .filter((faq) => faq.question && faq.answer)
+    .map((faq) => ({
+      '@type': 'Question',
+      name: faq.question,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: faq.answer,
+      },
+    })),
+};
+const serviceJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Service',
+  name: serviceName,
+  description,
+  provider: {
+    '@type': 'Organization',
+    name: 'NotaioGiusto.it',
+  },
+  areaServed: 'IT',
+  offers: service.price_avg_cents
+    ? {
+        '@type': 'AggregateOffer',
+        priceCurrency: 'EUR',
+        lowPrice: service.price_min_cents ? (service.price_min_cents / 100).toFixed(0) : undefined,
+        highPrice: service.price_max_cents ? (service.price_max_cents / 100).toFixed(0) : undefined,
+        offerCount: 1,
+      }
+    : undefined,
+};
 ---
-<BaseLayout title={title} description={description}>
+<BaseLayout
+  title={title}
+  description={description}
+  canonicalPath={`/quanto-costa/${service.slug}`}
+  jsonLd={[serviceJsonLd, faqJsonLd]}
+>
   <section class="service-hero">
     <div>
       <span class="eyebrow">{service.category || 'Servizio notarile'}</span>
@@ -132,18 +168,13 @@ const messagePlaceholder = isCopyAuthentication
           <span class="pill gold">Complessità {service.complexity || 'media'}</span>
         </div>
       </div>
-      <form class="quote-box" action="/api/quote-request" method="post">
+      <div class="quote-box">
         <h2>Richiedi un preventivo per {serviceName}</h2>
-        <p>Invia una richiesta chiara: lo studio potrà confermare disponibilità, documenti e costo reale.</p>
-        <input type="hidden" name="service_slug" value={service.slug} />
-        <input type="hidden" name="service_name" value={serviceName} />
-        <label>Email obbligatoria <input required type="email" name="email" placeholder="nome@email.it" /></label>
-        <label>Comune <input name="comune" placeholder="Es. Milano" /></label>
-        <label>Nome <input name="name" placeholder="Facoltativo" /></label>
-        <label>Telefono <input name="phone" placeholder="Facoltativo" /></label>
-        <label>Descrivi la pratica <textarea name="message" placeholder={messagePlaceholder}></textarea></label>
-        <button class="btn blue" type="submit">Invia richiesta qualificata</button>
-      </form>
+        <p>Usa il funnel guidato: pratica, località e selezione fino a 3 notai, con riepilogo prima dell’invio.</p>
+        <a class="btn blue" href={`/preventivo?step=2&servizio=${encodeURIComponent(service.slug)}`}>Inizia richiesta qualificata</a>
+        <p class="helper-text">Puoi anche partire dalla ricerca notai e aggiungere fino a 3 studi al preventivo.</p>
+        <a class="btn secondary" href={`/notai?servizio=${encodeURIComponent(service.slug)}`}>Cerca notai per questo servizio</a>
+      </div>
     </aside>
   </section>
 </BaseLayout>

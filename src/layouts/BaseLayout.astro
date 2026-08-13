@@ -1,9 +1,16 @@
 ---
+import { absoluteUrl } from '../lib/site';
+
 const {
   title = 'NotaioGiusto.it',
   description = 'Trova il notaio giusto, capisci i costi e richiedi un preventivo notarile qualificato.',
   noindex = false,
+  canonicalPath,
+  jsonLd,
 } = Astro.props;
+
+const canonical = absoluteUrl(canonicalPath || Astro.url.pathname);
+const jsonLdBlocks = Array.isArray(jsonLd) ? jsonLd : jsonLd ? [jsonLd] : [];
 ---
 <!doctype html>
 <html lang="it">
@@ -12,8 +19,12 @@ const {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
     {noindex && <meta name="robots" content="noindex,nofollow" />}
     <link rel="stylesheet" href="/styles.css" />
+    {jsonLdBlocks.map((block) => (
+      <script type="application/ld+json" set:html={JSON.stringify(block)} />
+    ))}
   </head>
   <body>
     <header class="site-header">
@@ -27,6 +38,7 @@ const {
       <nav class="nav">
         <a href="/quanto-costa">Quanto costa?</a>
         <a href="/notai">Cerca notai</a>
+        <a href="/preventivo">Preventivo</a>
         <a href="/area-notai">Area notai</a>
       </nav>
     </header>

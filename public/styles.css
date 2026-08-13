@@ -139,11 +139,46 @@ textarea { min-height: 120px; resize: vertical; }
 .footer { display: flex; justify-content: space-between; gap: 20px; padding: 28px clamp(18px, 5vw, 72px); color: #667085; border-top: 1px solid var(--line); background: #fff; }
 .success { margin: 24px 0; padding: 18px; border-radius: 8px; border: 1px solid #8de6bc; background: #ecfdf5; color: #075f43; font-weight: 800; }
 .error { margin: 24px 0; padding: 18px; border-radius: 8px; border: 1px solid #f3b6b0; background: #fff1f0; color: var(--danger); font-weight: 800; }
+.funnel-hero { padding: clamp(38px, 6vw, 74px) clamp(18px, 5vw, 72px); background: linear-gradient(135deg, #f8fbff 0%, #f5efe5 100%); border-bottom: 1px solid var(--line); }
+.funnel-hero h1 { font-size: clamp(36px, 5vw, 62px); }
+.funnel-steps { display: flex; flex-wrap: wrap; gap: 10px; margin: 28px 0 0; padding: 0; list-style: none; }
+.funnel-steps li { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 8px 12px; border: 1px solid #d8e2ef; border-radius: 999px; background: rgba(255,255,255,.85); color: #667085; font-weight: 850; }
+.funnel-steps li span { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #eef4ff; color: var(--brand); font-size: 13px; }
+.funnel-steps li.is-active { border-color: #b7d7ff; color: var(--brand); background: #f3f8ff; }
+.funnel-steps li.is-done { border-color: #dbc48e; color: #7a5a16; background: #fffaf0; }
+.funnel-section { background: #f7f8fb; }
+.funnel-card { max-width: 920px; }
+.funnel-card > p { margin: -8px 0 18px; color: #475467; }
+.funnel-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 14px; }
+.funnel-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.funnel-actions.inline { margin-top: 0; align-items: end; }
+.funnel-context { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+.funnel-context span { min-height: 40px; padding: 8px 12px; border-radius: 999px; background: #eef4ff; color: #344054; font-weight: 850; }
+.funnel-stack { display: grid; gap: 18px; max-width: 920px; }
+.notary-pick { display: grid; grid-template-columns: 24px 1fr; gap: 14px; align-items: start; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: #fff; cursor: pointer; }
+.notary-pick.is-selected { border-color: #b7d7ff; background: #f8fbff; }
+.notary-pick input { width: 18px; min-height: 18px; margin-top: 4px; }
+.notary-pick strong { display: block; font-size: 20px; }
+.notary-pick em { display: block; margin-top: 6px; color: #667085; font-style: normal; }
+.summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 18px 0; }
+.summary-grid div { padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: #fbfdff; }
+.summary-grid span { display: block; margin-bottom: 6px; color: #667085; font-size: 13px; font-weight: 900; text-transform: uppercase; }
+.summary-message { color: #344054; line-height: 1.7; }
+.summary-notaries { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.summary-notaries li { display: flex; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.admin-toolbar { margin: 0 0 18px; }
+.admin-request__head { display: flex; justify-content: space-between; gap: 16px; align-items: start; margin-bottom: 8px; }
+.admin-request__head h2 { margin: 0 0 8px; font-size: 26px; }
+.admin-request__head p { margin: 0; color: #667085; }
+.admin-json { overflow: auto; padding: 14px; border-radius: 8px; background: #0f2746; color: #e8eef7; font-size: 13px; }
+.quote-box .btn + .helper-text { margin-top: 14px; }
+.quote-box .btn.secondary { margin-top: 10px; width: 100%; }
 @media (max-width: 900px) {
   .site-header { align-items: flex-start; }
   .nav { gap: 12px; flex-wrap: wrap; justify-content: flex-end; font-size: 14px; }
   .brand strong { font-size: 19px; }
-  .hero, .two-col, .form-grid, .grid, .service-layout, .info-grid, .hero-summary, .notary-hero__inner, .notary-layout, .contact-grid, .service-chip-grid, .notary-result-row { grid-template-columns: 1fr; }
+  .hero, .two-col, .form-grid, .grid, .service-layout, .info-grid, .hero-summary, .notary-hero__inner, .notary-layout, .contact-grid, .service-chip-grid, .notary-result-row, .funnel-grid, .summary-grid { grid-template-columns: 1fr; }
+  .summary-notaries li, .admin-request__head { flex-direction: column; }
   .side-stack, .notary-side { position: static; }
   body:has(.sticky-actions) { padding-bottom: 86px; }
   .sticky-actions { position: fixed; top: auto; right: 0; bottom: 0; left: 0; z-index: 30; display: grid; grid-template-columns: 1fr 1.25fr 1fr; gap: 8px; padding: 10px 12px max(10px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); border-bottom: 0; box-shadow: 0 -10px 24px rgba(16,24,40,.14); }

@@ -1,0 +1,36 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getAdminToken, isAdminAuthenticated, setAdminCookie } from '../../lib/admin';
+
+if (isAdminAuthenticated(Astro.cookies)) {
+  return Astro.redirect('/admin/richieste');
+}
+
+let error = '';
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const token = String(form.get('token') || '').trim();
+  const expected = getAdminToken();
+  if (!expected) {
+    error = 'ADMIN_TOKEN non configurato sul server.';
+  } else if (token && token === expected) {
+    setAdminCookie(Astro.cookies, token);
+    return Astro.redirect('/admin/richieste');
+  } else {
+    error = 'Token non valido.';
+  }
+}
+---
+<BaseLayout title="Admin login | NotaioGiusto.it" noindex={true}>
+  <section class="section">
+    <form class="card funnel-card" method="post" action="/admin/login">
+      <h1>Area admin</h1>
+      <p class="lead">Accesso riservato per consultare le richieste di preventivo.</p>
+      {error && <div class="error">{error}</div>}
+      <label>Token admin <input required type="password" name="token" autocomplete="current-password" /></label>
+      <div class="funnel-actions">
+        <button class="btn navy" type="submit">Entra</button>
+      </div>
+    </form>
+  </section>
+</BaseLayout>

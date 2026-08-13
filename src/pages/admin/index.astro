@@ -1,0 +1,8 @@
+---
+import { isAdminAuthenticated } from '../../lib/admin';
+
+if (isAdminAuthenticated(Astro.cookies)) {
+  return Astro.redirect('/admin/richieste');
+}
+return Astro.redirect('/admin/login');
+---
