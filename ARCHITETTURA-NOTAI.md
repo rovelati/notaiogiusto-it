@@ -294,8 +294,9 @@ MAILGUN_BASE_URL=https://api.eu.mailgun.net
 
 MVP attuale:
 
-- `/admin/login` con token;
-- `/admin/richieste` per leggere `quote_requests` e destinatari.
+- `/admin/login` con token (`ADMIN_TOKEN` o fallback `AUTH_SECRET`);
+- `/admin-test` console ops (overview, preventivi, clienti, arricchimenti, claim, tassonomia);
+- `/admin/richieste` reindirizza a `/admin-test/preventivi`.
 
 Previsto:
 
