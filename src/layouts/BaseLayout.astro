@@ -1,0 +1,41 @@
+---
+const {
+  title = 'NotaioGiusto.it',
+  description = 'Trova il notaio giusto, capisci i costi e richiedi un preventivo notarile qualificato.',
+  noindex = false,
+} = Astro.props;
+---
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    {noindex && <meta name="robots" content="noindex,nofollow" />}
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="NotaioGiusto.it">
+        <span class="brand-mark">N</span>
+        <span>
+          <strong>NotaioGiusto.it</strong>
+          <small>Notai, costi e preventivi</small>
+        </span>
+      </a>
+      <nav class="nav">
+        <a href="/quanto-costa">Quanto costa?</a>
+        <a href="/notai">Cerca notai</a>
+        <a href="/area-notai">Area notai</a>
+      </nav>
+    </header>
+    <main>
+      <slot />
+    </main>
+    <footer class="footer">
+      <strong>NotaioGiusto.it</strong>
+      <span>I costi sono indicativi: imposte e spese variano in base alla pratica.</span>
+    </footer>
+  </body>
+</html>

@@ -1,0 +1,168 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { euro } from '../../lib/format';
+import { getNotary, getNotaryServices, getTopServices } from '../../lib/notai';
+
+const notary = await getNotary(Astro.params.slug || '');
+if (!notary) return Astro.redirect('/notai');
+
+const declaredServices = await getNotaryServices(notary.id, 8);
+const popularServices = await getTopServices(8);
+const services = declaredServices.length ? declaredServices : popularServices;
+const addressLine = [notary.address, notary.cap, notary.comune].filter(Boolean).join(', ');
+const mapQuery = encodeURIComponent(addressLine || notary.full_name);
+const directionsUrl = notary.lat && notary.lng
+  ? `https://www.google.com/maps/dir/?api=1&destination=${notary.lat},${notary.lng}&travelmode=driving`
+  : `https://www.google.com/maps/search/?api=1&query=${mapQuery}`;
+const staticMapUrl = notary.lat && notary.lng
+  ? `https://www.openstreetmap.org/export/embed.html?bbox=${notary.lng - 0.01}%2C${notary.lat - 0.008}%2C${notary.lng + 0.01}%2C${notary.lat + 0.008}&layer=mapnik&marker=${notary.lat}%2C${notary.lng}`
+  : null;
+const phoneHref = notary.phone ? `tel:${notary.phone.replace(/\s+/g, '')}` : null;
+const metaDescription = `Contatti, sede, servizi e richiesta preventivo per ${notary.full_name}${notary.comune ? `, notaio a ${notary.comune}` : ''}. Profilo da fonte ufficiale Notariato.`;
+---
+<BaseLayout title={`${notary.full_name} | Notaio a ${notary.comune || ''}`} description={metaDescription}>
+  <section class="notary-hero">
+    <div class="notary-hero__inner">
+      <div>
+        <div class="notary-kicker">Notaio</div>
+        <h1>{notary.full_name}</h1>
+        <p class="lead">
+          Studio notarile {notary.comune ? `a ${notary.comune}` : 'in Italia'}.
+          Consulta i contatti, verifica la sede e richiedi un preventivo qualificato per la tua pratica.
+        </p>
+        <div class="notary-badges">
+          {notary.is_official_notariato && <span class="trust-badge">Fonte ufficiale Notariato</span>}
+          <span class="trust-badge muted">Profilo pubblico</span>
+          {declaredServices.length ? <span class="trust-badge">Servizi rilevati</span> : <span class="trust-badge muted">Servizi da confermare</span>}
+        </div>
+      </div>
+      <div class="notary-hero-card">
+        <span>Sede</span>
+        <strong>{notary.comune || 'Comune non disponibile'}</strong>
+        <p>{addressLine || 'Indirizzo non disponibile'}</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="sticky-actions">
+    {phoneHref ? <a class="btn navy" href={phoneHref}>Chiama</a> : <span class="btn disabled">Telefono non disponibile</span>}
+    <a class="btn blue" href="#preventivo">Chiedi preventivo</a>
+    <a class="btn secondary" rel="nofollow" target="_blank" href={directionsUrl}>Portami lì</a>
+  </div>
+
+  <section class="section notary-layout">
+    <article class="notary-main">
+      <div class="card">
+        <div class="section-title-row">
+          <h2>Contatti e sede</h2>
+          {notary.official_reference_url && (
+            <a class="official-link" rel="nofollow" target="_blank" href={notary.official_reference_url}>
+              Verifica su Notariato.it
+            </a>
+          )}
+        </div>
+        <div class="contact-grid">
+          <div>
+            <span>Indirizzo</span>
+            <strong>{addressLine || 'Non disponibile'}</strong>
+            <a class="inline-action" rel="nofollow" target="_blank" href={directionsUrl}>Apri percorso</a>
+          </div>
+          <div>
+            <span>Telefono</span>
+            {notary.phone ? <strong><a href={phoneHref}>{notary.phone}</a></strong> : <strong>Non disponibile</strong>}
+          </div>
+          <div>
+            <span>Email</span>
+            {notary.email ? <strong><a href={`mailto:${notary.email}`}>{notary.email}</a></strong> : <strong>Non disponibile</strong>}
+          </div>
+          <div>
+            <span>PEC</span>
+            <strong>{notary.pec || 'Non disponibile'}</strong>
+          </div>
+          {notary.website && (
+            <div>
+              <span>Sito web</span>
+              <strong><a rel="nofollow" target="_blank" href={notary.website}>{notary.website}</a></strong>
+            </div>
+          )}
+          <div>
+            <span>Distretto</span>
+            <strong>{notary.district || 'Non disponibile'}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Servizi notarili</h2>
+        <p class="muted-text">
+          {declaredServices.length
+            ? 'Questi servizi risultano associati al profilo da fonti pubbliche o arricchimenti.'
+            : 'In attesa degli arricchimenti da sito, Google e fonti locali, mostriamo le pratiche notarili più richieste: disponibilità e prezzo vanno confermati dallo studio.'}
+        </p>
+        <div class="service-chip-grid">
+          {services.map((service) => (
+            <a class="service-chip" href={`/quanto-costa/${service.slug}`}>
+              <strong>{service.plain_language_name || service.name}</strong>
+              <span>{euro(service.price_avg_cents)} media indicativa</span>
+            </a>
+          ))}
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Recensioni e reputazione</h2>
+        <p class="muted-text">
+          Le recensioni Google e la sintesi AI non sono ancora disponibili in questo MVP. Quando collegheremo le API Google,
+          mostreremo valutazione, temi ricorrenti, punti forti, aspetti da chiarire e possibili servizi citati dagli utenti.
+        </p>
+        <div class="empty-panel">
+          <strong>Prossimo arricchimento</strong>
+          <span>Recensioni Google, classificazione semantica e servizi ricavati dalle opinioni.</span>
+        </div>
+      </div>
+
+      <div class="card claim-callout">
+        <div>
+          <h2>Sei questo notaio?</h2>
+          <p>Accedi all area notai per aggiornare dati, servizi, disponibilità, contenuti e ricevere richieste più complete.</p>
+        </div>
+        <a class="btn" href={`/claim?notary=${notary.id}`}>Aggiorna il profilo</a>
+      </div>
+    </article>
+
+    <aside class="notary-side">
+      <div class="card map-card">
+        <div class="section-title-row">
+          <h2>Mappa</h2>
+          <a class="official-link" rel="nofollow" target="_blank" href={directionsUrl}>Portami lì</a>
+        </div>
+        {staticMapUrl ? (
+          <iframe title={`Mappa ${notary.full_name}`} src={staticMapUrl} loading="lazy"></iframe>
+        ) : (
+          <div class="map-fallback">
+            <strong>{notary.comune || 'Sede'}</strong>
+            <span>{addressLine || 'Coordinate non ancora disponibili'}</span>
+            <a class="btn secondary" rel="nofollow" target="_blank" href={directionsUrl}>Apri su Google Maps</a>
+          </div>
+        )}
+      </div>
+
+      <form id="preventivo" class="quote-box quote-box--notary" action="/api/quote-request" method="post">
+        <h2>Chiedi un preventivo</h2>
+        <p>Invia allo studio una richiesta chiara. Aggiungi il servizio, il comune e le tempistiche.</p>
+        <label>Servizio
+          <select name="service_slug">
+            {popularServices.map((service) => <option value={service.slug}>{service.plain_language_name || service.name}</option>)}
+          </select>
+        </label>
+        <input type="hidden" name="target_notary_id" value={notary.id} />
+        <input type="hidden" name="comune" value={notary.comune || ''} />
+        <label>Email obbligatoria <input required type="email" name="email" placeholder="nome@email.it" /></label>
+        <label>Nome <input name="name" placeholder="Facoltativo" /></label>
+        <label>Telefono <input name="phone" placeholder="Facoltativo" /></label>
+        <label>Messaggio <textarea name="message" placeholder="Es. acquisto prima casa, valore indicativo, urgenza, documenti già disponibili..."></textarea></label>
+        <button class="btn blue" type="submit">Invia richiesta al notaio</button>
+      </form>
+    </aside>
+  </section>
+</BaseLayout>

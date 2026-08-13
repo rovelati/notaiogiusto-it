@@ -1,0 +1,49 @@
+---
+import BaseLayout from '../../../../layouts/BaseLayout.astro';
+import { euro, locationToLabel } from '../../../../lib/format';
+import { getService, searchNotaries } from '../../../../lib/notai';
+
+const service = await getService(Astro.params.servizio || '');
+const location = locationToLabel(Astro.params.localita || '');
+const comune = (Astro.params.localita || '').split('-').slice(0, -1).join(' ');
+const notaries = await searchNotaries({ comune, limit: 12 });
+if (!service) return Astro.redirect('/quanto-costa');
+---
+<BaseLayout title={`${service.plain_language_name || service.name} a ${location}: notai e preventivi`}>
+  <section class="section">
+    <span class="eyebrow">Preventivo notarile locale</span>
+    <h1>{service.plain_language_name || service.name} a {location}</h1>
+    <p class="lead">Range nazionale indicativo: <strong>{euro(service.price_min_cents)} - {euro(service.price_max_cents)}</strong>. Qui trovi notai in zona e puoi inviare una richiesta strutturata.</p>
+    <div class="two-col">
+      <div class="list">
+        {notaries.map((notary) => (
+          <article class="card notary-row">
+            <div>
+              <h3>{notary.full_name}</h3>
+              <address>{notary.address}, {notary.comune}</address>
+              <div class="meta">
+                {notary.email && <span class="pill green">Email disponibile</span>}
+                {notary.is_official_notariato && <span class="pill">Fonte Notariato</span>}
+              </div>
+            </div>
+            <div class="actions">
+              {notary.phone && <a class="btn" href={`tel:${notary.phone}`}>Chiama</a>}
+              <a class="btn secondary" href={`/notai/${notary.source_slug}`}>Scheda</a>
+            </div>
+          </article>
+        ))}
+      </div>
+      <form class="quote-box" action="/api/quote-request" method="post">
+        <h2>Richiedi preventivo per {service.plain_language_name || service.name}</h2>
+        <input type="hidden" name="service_slug" value={service.slug} />
+        <input type="hidden" name="service_name" value={service.plain_language_name || service.name} />
+        <input type="hidden" name="comune" value={comune} />
+        <label>Email obbligatoria <input required type="email" name="email" placeholder="nome@email.it" /></label>
+        <label>Nome <input name="name" /></label>
+        <label>Telefono <input name="phone" /></label>
+        <label>Dettagli <textarea name="message" placeholder="Aggiungi importo, tempistiche, documenti disponibili..."></textarea></label>
+        <button class="btn blue" type="submit">Invia a notai disponibili</button>
+      </form>
+    </div>
+  </section>
+</BaseLayout>

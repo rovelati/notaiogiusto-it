@@ -1,0 +1,149 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { euro } from '../../lib/format';
+import { getService } from '../../lib/notai';
+
+const service = await getService(Astro.params.servizio || '');
+if (!service) return Astro.redirect('/quanto-costa');
+const serviceName = service.plain_language_name || service.name;
+const title = service.seo_title || `${serviceName}: costo, documenti e preventivo notaio`;
+const description = service.seo_description || `${serviceName}: quando serve, documenti da preparare, prezzo indicativo e richiesta preventivo notarile.`;
+const priceRange = `${euro(service.price_min_cents)} - ${euro(service.price_max_cents)}`;
+const isLowComplexity = service.complexity === 'bassa';
+const isCopyAuthentication = service.slug.includes('autentica') && service.slug.includes('copia');
+const defaultDocuments = isCopyAuthentication
+  ? ['Documento originale da cui ricavare la copia', 'Copia da autenticare, se gia preparata', 'Documento di identita e codice fiscale di chi richiede l autentica', 'Eventuali deleghe o riferimenti della pratica se la copia serve per un ente']
+  : ['Documento di identita e codice fiscale', 'Dati delle parti coinvolte', 'Documenti relativi alla pratica', 'Eventuali bozze, accordi o comunicazioni gia ricevute'];
+const documents = Array.isArray(service.required_documents) && service.required_documents.length
+  ? service.required_documents.map((item) => String(item))
+  : defaultDocuments;
+const intro = isCopyAuthentication
+  ? 'Serve quando devi presentare a un ente, a una banca o a un altro soggetto una copia conforme a un documento originale.'
+  : service.user_intent || `Serve per inquadrare correttamente la pratica notarile e ricevere un preventivo confrontabile da uno o piu studi.`;
+const practicalDescription = isCopyAuthentication
+  ? `L autentica di copia e l attestazione con cui il notaio dichiara che una copia corrisponde al documento originale mostrato. E una pratica normalmente semplice, ma il costo puo cambiare in base al numero di pagine, al tipo di documento, all urgenza e agli eventuali diritti o marche richieste. Prima di andare in studio conviene verificare se il notaio deve vedere l originale, quante copie servono e per quale uso verra presentata la copia.`
+  : `Questa pagina ti aiuta a capire il costo indicativo, quali informazioni preparare e come chiedere un preventivo notarile piu preciso. Il prezzo finale dipende dal tipo di atto, dal valore economico della pratica, dalle imposte, dalle verifiche necessarie e dalle tempistiche richieste.`;
+const priceFactors = isCopyAuthentication
+  ? ['Numero di pagine e copie richieste', 'Tipo di documento da autenticare', 'Urgenza della richiesta', 'Marche, diritti o spese vive applicabili']
+  : ['Valore economico della pratica', 'Numero di parti coinvolte', 'Verifiche e visure necessarie', 'Imposte, tasse e spese anticipate dal notaio'];
+const fallbackFaqs = isCopyAuthentication
+  ? [
+      {
+        question: 'Devo portare il documento originale?',
+        answer: 'Si, di norma il notaio deve confrontare la copia con l originale. Se hai solo una scansione o una foto, chiedi prima allo studio se e sufficiente per il tuo caso.',
+      },
+      {
+        question: 'Il prezzo e sempre fisso?',
+        answer: 'No. Per una copia semplice il costo e contenuto, ma puo variare per numero di pagine, urgenza, marche e diritti richiesti.',
+      },
+      {
+        question: 'Posso fare tutto online?',
+        answer: 'Spesso serve passare dallo studio o inviare prima i documenti per verifica. La disponibilita dipende dal notaio e dal tipo di documento.',
+      },
+    ]
+  : [
+      {
+        question: 'Il preventivo include anche tasse e imposte?',
+        answer: 'Dipende dal caso. Conviene chiedere sempre la distinzione tra compenso del notaio, imposte e spese vive.',
+      },
+      {
+        question: 'Posso confrontare piu notai?',
+        answer: 'Si. Una richiesta chiara e completa permette agli studi di rispondere con preventivi piu confrontabili.',
+      },
+      {
+        question: 'Quando devo andare fisicamente dal notaio?',
+        answer: 'Per molti atti la presenza e necessaria nella fase di firma. Alcune verifiche preliminari possono invece essere gestite a distanza.',
+      },
+    ];
+const faqs = Array.isArray(service.faqs) && service.faqs.length ? service.faqs : fallbackFaqs;
+const messagePlaceholder = isCopyAuthentication
+  ? 'Es. devo autenticare 2 copie di un documento di 4 pagine, mi serve entro questa settimana...'
+  : `Es. dettagli sulla pratica di ${serviceName.toLowerCase()}, valore indicativo, tempistiche...`;
+---
+<BaseLayout title={title} description={description}>
+  <section class="service-hero">
+    <div>
+      <span class="eyebrow">{service.category || 'Servizio notarile'}</span>
+      <h1>{serviceName}: costo, documenti e preventivo</h1>
+      <p class="lead">{intro}</p>
+      <div class="hero-summary">
+        <span><strong>{priceRange}</strong> range indicativo</span>
+        <span><strong>{euro(service.price_avg_cents)}</strong> media rilevata</span>
+        <span><strong>{isLowComplexity ? 'Bassa' : service.complexity || 'Media'}</strong> complessità</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="section service-layout">
+    <article class="content-stack">
+      <div class="card editorial-card">
+        <h2>Quando serve</h2>
+        <p>{practicalDescription}</p>
+      </div>
+
+      <div class="info-grid">
+        <div class="card">
+          <h2>Cosa incide sul prezzo</h2>
+          <ul class="check-list">
+            {priceFactors.map((factor) => <li>{factor}</li>)}
+          </ul>
+        </div>
+        <div class="card">
+          <h2>Documenti da preparare</h2>
+          <ul class="check-list">
+            {documents.map((document) => <li>{document}</li>)}
+          </ul>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Come leggere il prezzo</h2>
+        <p>
+          Il range e una stima nazionale utile per orientarsi. Il preventivo reale deve distinguere
+          compenso professionale, imposte, tasse, marche e spese anticipate. Per questo una richiesta
+          con documenti e contesto riduce risposte generiche e rende piu facile confrontare gli studi.
+        </p>
+        <div class="meta">
+          <span class="pill green">{service.requires_in_person ? 'Di norma serve lo studio' : 'Possibile gestione a distanza'}</span>
+          <span class="pill gold">Preventivo da confermare sul caso</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Domande frequenti</h2>
+        <div class="faq-list">
+          {faqs.map((faq) => (
+            <details>
+              <summary>{faq.question}</summary>
+              <p>{faq.answer}</p>
+            </details>
+          ))}
+        </div>
+      </div>
+    </article>
+
+    <aside class="side-stack">
+      <div class="card price-card">
+        <h2>Range indicativo nazionale</h2>
+        <div class="price">{priceRange}</div>
+        <p>Valore medio rilevato: <strong>{euro(service.price_avg_cents)}</strong>. Imposte, tasse e anticipazioni vanno confermate sul caso concreto.</p>
+        <div class="meta">
+          <span class="pill green">{service.requires_in_person ? 'Di norma in studio' : 'Possibile da remoto'}</span>
+          <span class="pill gold">Complessità {service.complexity || 'media'}</span>
+        </div>
+      </div>
+      <form class="quote-box" action="/api/quote-request" method="post">
+        <h2>Richiedi un preventivo per {serviceName}</h2>
+        <p>Invia una richiesta chiara: lo studio potrà confermare disponibilità, documenti e costo reale.</p>
+        <input type="hidden" name="service_slug" value={service.slug} />
+        <input type="hidden" name="service_name" value={serviceName} />
+        <label>Email obbligatoria <input required type="email" name="email" placeholder="nome@email.it" /></label>
+        <label>Comune <input name="comune" placeholder="Es. Milano" /></label>
+        <label>Nome <input name="name" placeholder="Facoltativo" /></label>
+        <label>Telefono <input name="phone" placeholder="Facoltativo" /></label>
+        <label>Descrivi la pratica <textarea name="message" placeholder={messagePlaceholder}></textarea></label>
+        <button class="btn blue" type="submit">Invia richiesta qualificata</button>
+      </form>
+    </aside>
+  </section>
+</BaseLayout>

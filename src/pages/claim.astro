@@ -1,0 +1,19 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+const notaryId = Astro.url.searchParams.get('notary') || '';
+---
+<BaseLayout title="Rivendica profilo notaio" noindex={true}>
+  <section class="section">
+    <span class="eyebrow">Claim gratuito</span>
+    <h1>Rivendica il profilo dello studio</h1>
+    <p class="lead">Nel MVP raccogliamo la richiesta di presa possesso. La verifica finale resta manuale/admin.</p>
+    <form class="quote-box" action="/api/claim" method="post">
+      <input type="hidden" name="notary_id" value={notaryId} />
+      <label>Nome e cognome <input required name="name" /></label>
+      <label>Email professionale <input required type="email" name="email" /></label>
+      <label>Telefono <input name="phone" /></label>
+      <label>Messaggio <textarea name="message" placeholder="Indica studio, ruolo e dati da aggiornare"></textarea></label>
+      <button class="btn" type="submit">Invia richiesta claim</button>
+    </form>
+  </section>
+</BaseLayout>

@@ -1,0 +1,81 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { euro } from '../lib/format';
+import { getStats, getTopServices } from '../lib/notai';
+
+const [services, stats] = await Promise.all([getTopServices(9), getStats()]);
+---
+<BaseLayout title="NotaioGiusto.it | Trova il notaio giusto e arriva preparato all'atto">
+  <section class="hero">
+    <div>
+      <span class="eyebrow">Notai, costi e preventivi</span>
+      <h1>Capisci quanto costa un atto notarile e chiedi un preventivo chiaro.</h1>
+      <p class="lead">
+        Scegli la pratica, indica la località e prepara una richiesta completa: prezzo indicativo, documenti utili e studi notarili da contattare.
+      </p>
+      <div class="hero-points">
+        <span>Range prezzo per orientarti prima di chiamare</span>
+        <span>Richiesta ordinata con servizio, città e dettagli</span>
+        <span>Profili da fonte ufficiale Notariato</span>
+      </div>
+    </div>
+    <form class="search-panel" action="/notai" method="get">
+      <h2>Da quale pratica vuoi partire?</h2>
+      <div class="form-grid">
+        <label>
+          Servizio
+          <select name="servizio">
+            <option value="">Scegli un servizio</option>
+            {services.map((service) => (
+              <option value={service.slug}>{service.plain_language_name || service.name}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Dove
+          <input name="comune" placeholder="Es. Milano" />
+        </label>
+        <button class="btn" type="submit">Cerca</button>
+      </div>
+      <p class="helper-text">Esempio: acquisto prima casa, successione, procura, costituzione SRL.</p>
+    </form>
+  </section>
+
+  <section class="section">
+    <div class="section-heading">
+      <span class="eyebrow">Quanto costa?</span>
+      <h2>Le pratiche notarili più cercate</h2>
+      <p>Ogni pagina spiega quando serve la prestazione, cosa incide sul prezzo, quali documenti preparare e come chiedere un preventivo.</p>
+    </div>
+    <div class="grid">
+      {services.map((service) => (
+        <a class="card" href={`/quanto-costa/${service.slug}`}>
+          <h3>{service.plain_language_name || service.name}</h3>
+          <p>{service.user_intent}</p>
+          <div class="price">{euro(service.price_avg_cents)}</div>
+          <div class="meta">
+            <span class="pill green">Preventivo qualificato</span>
+            <span class="pill gold">{service.complexity || 'media'}</span>
+          </div>
+        </a>
+      ))}
+    </div>
+  </section>
+
+  <section class="section soft">
+    <div class="two-col">
+      <div>
+        <span class="eyebrow">Come funziona</span>
+        <h2>Non basta chiedere “quanto costa?”</h2>
+        <p class="lead">Per confrontare davvero i preventivi servono pratica, valore, luogo, tempi, documenti già disponibili e complessità. Il prezzo conta, ma deve essere leggibile.</p>
+      </div>
+      <div class="card">
+        <h3>Base dati in costruzione</h3>
+        <p>
+          Partiamo da {Number(stats.notaries).toLocaleString('it-IT')} notai da fonte ufficiale e {stats.services} servizi classificati.
+          I numeri servono come garanzia tecnica, non come messaggio principale per l utente.
+        </p>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

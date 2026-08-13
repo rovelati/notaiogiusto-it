@@ -1,0 +1,83 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { euro, titleCase } from '../../lib/format';
+import { getService, searchNotaries } from '../../lib/notai';
+
+const q = Astro.url.searchParams.get('q') || '';
+const comune = Astro.url.searchParams.get('comune') || '';
+const servizio = Astro.url.searchParams.get('servizio') || '';
+const [notaries, service] = await Promise.all([
+  searchNotaries({ q, comune, limit: 24 }),
+  servizio ? getService(servizio) : Promise.resolve(null),
+]);
+const serviceName = service?.plain_language_name || service?.name || '';
+const locationLabel = comune ? titleCase(comune.trim()) : '';
+const title = service
+  ? `${serviceName}${locationLabel ? ` a ${locationLabel}` : ''}: notai e preventivo`
+  : 'Cerca notai | NotaioGiusto.it';
+const exactCityCount = locationLabel
+  ? notaries.filter((notary) => (notary.comune || '').toLowerCase() === locationLabel.toLowerCase()).length
+  : 0;
+---
+<BaseLayout title={title}>
+  <section class="search-results-hero">
+    <span class="eyebrow">Ricerca notai</span>
+    <h1>
+      {service
+        ? `${serviceName}${locationLabel ? ` a ${locationLabel}` : ''}`
+        : 'Cerca un notaio'}
+    </h1>
+    <p class="lead">
+      {service
+        ? `Trova studi notarili nella zona, verifica i contatti e invia una richiesta di preventivo per ${serviceName.toLowerCase()}.`
+        : 'Cerca per nome, città o zona e apri la scheda del notaio per contatti, mappa e preventivo.'}
+    </p>
+    {service && (
+      <div class="result-context">
+        <span><strong>{euro(service.price_avg_cents)}</strong> media indicativa nazionale</span>
+        <span><strong>{notaries.length}</strong> notai trovati</span>
+        {locationLabel && <span><strong>{exactCityCount}</strong> nel comune cercato</span>}
+        <a href={`/quanto-costa/${service.slug}`}>Guida alla pratica</a>
+      </div>
+    )}
+  </section>
+
+  <section class="section">
+    <form class="search-panel compact-search" action="/notai" method="get">
+      <div class="form-grid">
+        <label>Nome o zona <input name="q" value={q} placeholder="Es. Rossi, Milano" /></label>
+        <label>Comune <input name="comune" value={comune} placeholder="Es. Milano" /></label>
+        <input type="hidden" name="servizio" value={servizio} />
+        <button class="btn" type="submit">Cerca</button>
+      </div>
+    </form>
+
+    <div class="list result-list">
+      {notaries.map((notary, index) => (
+        <article class="card notary-result-row">
+          <div>
+            <div class="result-title-row">
+              <span class="result-rank">{index + 1}</span>
+              <h3>{titleCase(notary.full_name)}</h3>
+            </div>
+            <address>
+              {notary.address || 'Indirizzo non disponibile'}
+              {notary.comune && ` · ${titleCase(notary.comune)}`}
+            </address>
+            <div class="result-badges">
+              {notary.is_official_notariato && <span>Fonte ufficiale Notariato</span>}
+              {locationLabel && (notary.comune || '').toLowerCase() === locationLabel.toLowerCase() && <span>Nel comune cercato</span>}
+              {notary.district && <span>Distretto {notary.district}</span>}
+              {service && <span>{serviceName}: disponibilità da confermare</span>}
+            </div>
+          </div>
+          <div class="actions">
+            {notary.phone && <a class="btn navy" href={`tel:${notary.phone}`}>Chiama</a>}
+            {service && <a class="btn blue" href={`/notai/${notary.source_slug}#preventivo`}>Preventivo</a>}
+            <a class="btn secondary" href={`/notai/${notary.source_slug}`}>Scheda</a>
+          </div>
+        </article>
+      ))}
+    </div>
+  </section>
+</BaseLayout>

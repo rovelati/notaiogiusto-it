@@ -1,0 +1,12 @@
+{
+  "private": true,
+  "name": "notaiogiusto-db-tools",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "pg:cookie": "node paginegialle_cookie_refresh.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.46.1"
+  }
+}

@@ -1,0 +1,26 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { euro } from '../../lib/format';
+import { getTopServices } from '../../lib/notai';
+
+const services = await getTopServices(80);
+---
+<BaseLayout title="Quanto costa il notaio? Servizi, documenti e preventivi">
+  <section class="section">
+    <span class="eyebrow">Costi notarili indicativi</span>
+    <h1>Quanto costa il notaio?</h1>
+    <p class="lead">Range iniziali per orientarti. Le imposte e le spese vive dipendono dal caso: il preventivo serve proprio a normalizzare le voci.</p>
+    <div class="grid">
+      {services.map((service) => (
+        <a class="card" href={`/quanto-costa/${service.slug}`}>
+          <h3>{service.plain_language_name || service.name}</h3>
+          <p>{service.user_intent}</p>
+          <div class="price">{euro(service.price_avg_cents)}</div>
+          <div class="meta">
+            <span class="pill">{euro(service.price_min_cents)} - {euro(service.price_max_cents)}</span>
+          </div>
+        </a>
+      ))}
+    </div>
+  </section>
+</BaseLayout>

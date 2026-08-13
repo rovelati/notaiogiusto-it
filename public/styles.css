@@ -1,0 +1,157 @@
+:root {
+  --ink: #101828;
+  --muted: #667085;
+  --line: #d9e1ec;
+  --soft: #f5f7fb;
+  --brand: #173b6c;
+  --brand-2: #245a93;
+  --gold: #b88931;
+  --blue: #245a93;
+  --navy: #0f2746;
+  --danger: #b42318;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; color: var(--ink); background: #fff; font-size: 16px; line-height: 1.5; }
+a { color: inherit; text-decoration: none; }
+.site-header { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 18px clamp(18px, 5vw, 72px); background: rgba(255,255,255,.94); border-bottom: 1px solid var(--line); backdrop-filter: blur(12px); }
+.brand { display: flex; align-items: center; gap: 12px; min-width: 230px; }
+.brand-mark { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 8px; color: #fff; background: linear-gradient(135deg, var(--navy), var(--brand-2)); font-weight: 900; }
+.brand strong { display: block; font-size: 22px; line-height: 1; }
+.brand small { color: var(--muted); }
+.nav { display: flex; align-items: center; gap: 26px; font-weight: 700; color: #344054; }
+.nav a:hover { color: var(--brand); }
+.hero { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(320px, .75fr); gap: clamp(28px, 6vw, 72px); padding: clamp(48px, 8vw, 96px) clamp(18px, 5vw, 72px); background: linear-gradient(135deg, #f8fbff 0%, #f5efe5 100%); }
+.eyebrow { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid #c9d8ec; border-radius: 999px; color: var(--brand); background: #f3f7ff; font-weight: 800; }
+h1 { margin: 22px 0 18px; max-width: 980px; font-size: clamp(42px, 6vw, 78px); line-height: .98; letter-spacing: 0; }
+h2 { margin: 0 0 18px; font-size: clamp(28px, 4vw, 44px); line-height: 1.08; letter-spacing: 0; }
+h3 { margin: 0 0 10px; font-size: 22px; line-height: 1.2; }
+.lead { max-width: 780px; color: #475467; font-size: clamp(19px, 2vw, 25px); }
+.helper-text { color: var(--muted); margin: 14px 0 0; }
+.hero-points { display: grid; gap: 10px; max-width: 720px; margin-top: 26px; }
+.hero-points span { position: relative; padding: 13px 16px 13px 42px; border: 1px solid #d8e2ef; border-radius: 8px; background: rgba(255,255,255,.76); color: #344054; font-weight: 850; }
+.hero-points span::before { content: ""; position: absolute; left: 17px; top: 19px; width: 10px; height: 10px; border-radius: 50%; background: var(--gold); }
+.section-heading { max-width: 850px; margin-bottom: 28px; }
+.section-heading h2 { margin-top: 14px; }
+.section-heading p { margin: 0; color: #475467; font-size: 19px; line-height: 1.7; }
+.search-panel, .card, .quote-box, .profile-panel { border: 1px solid var(--line); border-radius: 8px; background: #fff; box-shadow: 0 10px 24px rgba(16,24,40,.06); }
+.search-panel { padding: 22px; align-self: center; }
+.search-panel h2 { font-size: 28px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; align-items: end; }
+label { display: grid; gap: 7px; color: #344054; font-weight: 800; }
+input, select, textarea { width: 100%; min-height: 48px; border: 1px solid #cbd5e1; border-radius: 7px; padding: 12px 14px; font: inherit; color: var(--ink); background: #fff; }
+textarea { min-height: 120px; resize: vertical; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 48px; padding: 12px 18px; border: 1px solid transparent; border-radius: 7px; background: var(--brand); color: #fff; font-weight: 900; cursor: pointer; }
+.btn.secondary { background: #fff; border-color: #cbd5e1; color: #233044; }
+.btn.blue { background: var(--blue); }
+.btn.navy { background: var(--navy); }
+.btn.disabled { background: #e4e7ec; color: #667085; cursor: not-allowed; }
+.section { padding: clamp(42px, 6vw, 78px) clamp(18px, 5vw, 72px); }
+.section.soft { background: var(--soft); }
+.service-hero { padding: clamp(42px, 7vw, 86px) clamp(18px, 5vw, 72px); background: linear-gradient(135deg, #f8fbff 0%, #f5efe5 100%); border-bottom: 1px solid var(--line); }
+.service-hero h1 { max-width: 1040px; font-size: clamp(38px, 5vw, 68px); }
+.search-results-hero { padding: clamp(38px, 6vw, 74px) clamp(18px, 5vw, 72px); background: linear-gradient(135deg, #f8fbff 0%, #f5efe5 100%); border-bottom: 1px solid var(--line); }
+.search-results-hero h1 { font-size: clamp(38px, 5vw, 64px); }
+.result-context { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+.result-context span, .result-context a { min-height: 44px; padding: 10px 14px; border: 1px solid #d8e2ef; border-radius: 999px; background: rgba(255,255,255,.8); color: #344054; font-weight: 850; }
+.result-context strong { color: var(--brand); }
+.compact-search { margin-bottom: 24px; box-shadow: none; }
+.hero-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; max-width: 980px; margin-top: 24px; }
+.hero-summary span { min-height: 78px; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,.82); color: #475467; font-weight: 800; }
+.hero-summary strong { display: block; color: var(--brand); font-size: 22px; }
+.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.two-col { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 28px; align-items: start; }
+.service-layout { display: grid; grid-template-columns: minmax(0, 1fr) 430px; gap: 28px; align-items: start; background: #fff; }
+.content-stack, .side-stack { display: grid; gap: 18px; }
+.side-stack { position: sticky; top: 96px; }
+.info-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.editorial-card p, .service-layout .card p { color: #475467; font-size: 18px; line-height: 1.75; }
+.card { padding: 22px; }
+.card p { margin: 0; color: var(--muted); }
+.check-list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.check-list li { position: relative; padding-left: 28px; color: #344054; font-weight: 700; }
+.check-list li::before { content: ""; position: absolute; left: 0; top: .48em; width: 12px; height: 12px; border-radius: 50%; background: var(--brand-2); box-shadow: inset 0 0 0 3px #edf4ff; }
+.faq-list { display: grid; gap: 10px; }
+.faq-list details { border: 1px solid var(--line); border-radius: 8px; background: #fbfdff; }
+.faq-list summary { cursor: pointer; padding: 16px; color: #1f2937; font-weight: 900; }
+.faq-list details p { padding: 0 16px 16px; }
+.price-card { border-color: #c9d8ec; background: #f8fbff; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 7px 10px; border-radius: 999px; background: #eef4ff; color: #2743a4; font-weight: 800; }
+.pill.green { background: #edf4ff; color: var(--brand); }
+.pill.gold { background: #fff7e6; color: var(--gold); }
+.price { margin: 14px 0 4px; font-size: 28px; font-weight: 950; color: var(--brand); }
+.list { display: grid; gap: 16px; }
+.notary-row { display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: center; }
+.notary-row address { color: var(--muted); font-style: normal; }
+.result-list { margin-top: 24px; }
+.notary-result-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: center; }
+.notary-result-row h3 { margin: 0; font-size: clamp(22px, 2.3vw, 30px); }
+.notary-result-row address { margin-top: 10px; color: #667085; font-style: normal; line-height: 1.6; }
+.result-title-row { display: flex; align-items: center; gap: 12px; }
+.result-rank { display: grid; place-items: center; width: 34px; height: 34px; flex: 0 0 auto; border-radius: 8px; background: #eef4ff; color: var(--brand); font-weight: 950; }
+.result-badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.result-badges span { display: inline-flex; align-items: center; min-height: 30px; padding: 6px 10px; border-radius: 999px; background: #f3f6fb; color: #344054; font-size: 14px; font-weight: 850; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.quote-box { padding: 24px; border-color: #b7d7ff; }
+.quote-box p { margin: -8px 0 18px; color: #475467; }
+.notice { padding: 14px 16px; border: 1px solid #f7d08a; border-radius: 8px; color: #7a3d0b; background: #fff8e6; font-weight: 700; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 22px; }
+.stat { padding: 18px; border-radius: 8px; background: #fff; border: 1px solid var(--line); }
+.stat strong { display: block; font-size: 30px; color: var(--brand); }
+.notary-hero { position: relative; padding: clamp(44px, 7vw, 92px) clamp(18px, 5vw, 72px); color: #fff; background: linear-gradient(135deg, #0f2746 0%, #173b6c 62%, #8a6728 100%); }
+.notary-hero__inner { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 28px; align-items: end; }
+.notary-hero h1 { max-width: 1040px; margin-top: 10px; color: #fff; }
+.notary-hero .lead { color: #dce8f7; }
+.notary-kicker { color: #f6d58f; font-weight: 950; text-transform: uppercase; letter-spacing: .08em; }
+.notary-badges { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
+.trust-badge { display: inline-flex; align-items: center; min-height: 36px; padding: 8px 12px; border: 1px solid rgba(255,255,255,.24); border-radius: 999px; background: rgba(255,255,255,.14); color: #fff; font-weight: 900; }
+.trust-badge.muted { color: #dce8f7; }
+.notary-hero-card { padding: 22px; border: 1px solid rgba(255,255,255,.24); border-radius: 8px; background: rgba(255,255,255,.12); box-shadow: 0 20px 36px rgba(0,0,0,.18); backdrop-filter: blur(10px); }
+.notary-hero-card span { display: block; color: #f6d58f; font-weight: 900; text-transform: uppercase; letter-spacing: .04em; }
+.notary-hero-card strong { display: block; margin-top: 4px; font-size: 30px; }
+.notary-hero-card p { margin: 8px 0 0; color: #dce8f7; }
+.sticky-actions { position: sticky; top: 79px; z-index: 9; display: flex; gap: 10px; padding: 12px clamp(18px, 5vw, 72px); border-bottom: 1px solid var(--line); background: rgba(255,255,255,.96); box-shadow: 0 8px 18px rgba(16,24,40,.06); backdrop-filter: blur(10px); }
+.notary-layout { display: grid; grid-template-columns: minmax(0, 1fr) 430px; gap: 28px; background: #f7f8fb; }
+.notary-main, .notary-side { display: grid; gap: 18px; align-content: start; }
+.notary-side { position: sticky; top: 156px; }
+.section-title-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.section-title-row h2 { margin-bottom: 0; }
+.official-link { color: var(--brand); font-weight: 900; }
+.contact-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.contact-grid div { min-height: 108px; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: #fbfdff; }
+.contact-grid span { display: block; margin-bottom: 8px; color: #667085; font-weight: 900; text-transform: uppercase; font-size: 13px; }
+.contact-grid strong { display: block; color: #1d2939; overflow-wrap: anywhere; }
+.inline-action { display: inline-flex; margin-top: 12px; color: var(--brand); font-weight: 900; }
+.muted-text { color: #475467; font-size: 17px; line-height: 1.7; }
+.service-chip-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
+.service-chip { min-height: 92px; padding: 16px; border: 1px solid #d5deeb; border-radius: 8px; background: #fff; }
+.service-chip strong { display: block; color: #162842; }
+.service-chip span { display: block; margin-top: 8px; color: var(--brand); font-weight: 900; }
+.empty-panel { display: grid; gap: 4px; margin-top: 16px; padding: 18px; border-radius: 8px; background: #f8fbff; border: 1px dashed #b9c8dd; color: #475467; }
+.empty-panel strong { color: var(--brand); }
+.claim-callout { display: flex; align-items: center; justify-content: space-between; gap: 18px; border-color: #dbc48e; background: #fffaf0; }
+.map-card iframe { width: 100%; height: 330px; border: 0; border-radius: 8px; }
+.map-fallback { display: grid; gap: 12px; min-height: 270px; padding: 22px; border-radius: 8px; background: linear-gradient(135deg, #eef4ff, #fff8e6); }
+.map-fallback strong { font-size: 24px; color: var(--brand); }
+.map-fallback span { color: #475467; }
+.quote-box--notary { border-color: #c9d8ec; }
+.footer { display: flex; justify-content: space-between; gap: 20px; padding: 28px clamp(18px, 5vw, 72px); color: #667085; border-top: 1px solid var(--line); background: #fff; }
+.success { margin: 24px 0; padding: 18px; border-radius: 8px; border: 1px solid #8de6bc; background: #ecfdf5; color: #075f43; font-weight: 800; }
+.error { margin: 24px 0; padding: 18px; border-radius: 8px; border: 1px solid #f3b6b0; background: #fff1f0; color: var(--danger); font-weight: 800; }
+@media (max-width: 900px) {
+  .site-header { align-items: flex-start; }
+  .nav { gap: 12px; flex-wrap: wrap; justify-content: flex-end; font-size: 14px; }
+  .brand strong { font-size: 19px; }
+  .hero, .two-col, .form-grid, .grid, .service-layout, .info-grid, .hero-summary, .notary-hero__inner, .notary-layout, .contact-grid, .service-chip-grid, .notary-result-row { grid-template-columns: 1fr; }
+  .side-stack, .notary-side { position: static; }
+  body:has(.sticky-actions) { padding-bottom: 86px; }
+  .sticky-actions { position: fixed; top: auto; right: 0; bottom: 0; left: 0; z-index: 30; display: grid; grid-template-columns: 1fr 1.25fr 1fr; gap: 8px; padding: 10px 12px max(10px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); border-bottom: 0; box-shadow: 0 -10px 24px rgba(16,24,40,.14); }
+  .sticky-actions .btn { min-width: 0; min-height: 52px; padding: 10px 8px; font-size: 15px; white-space: nowrap; }
+  .claim-callout, .section-title-row { align-items: flex-start; flex-direction: column; }
+  .notary-row { grid-template-columns: 1fr; }
+  .notary-result-row .actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .notary-result-row .actions .btn { padding-left: 8px; padding-right: 8px; }
+  .stats { grid-template-columns: 1fr; }
+  .footer { display: block; }
+}
