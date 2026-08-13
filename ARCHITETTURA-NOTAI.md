@@ -263,6 +263,7 @@ MAILGUN_BASE_URL=https://api.eu.mailgun.net
 ```
 
 `ADMIN_TOKEN` protegge l'area minima `/admin/*` (login cookie httpOnly).
+`AUTH_SECRET` firma magic-link e sessione area clienti (`/area-clienti/*`); se assente si usa `ADMIN_TOKEN` come fallback.
 
 ## Funzionalita MVP
 
@@ -272,6 +273,7 @@ MAILGUN_BASE_URL=https://api.eu.mailgun.net
 - pagina risultati notai;
 - pagina scheda notaio;
 - form richiesta preventivo;
+- area clienti con accesso magic-link e storico richieste (`/area-clienti`);
 - email conferma al richiedente;
 - anti-duplicato richieste ravvicinate;
 - pagine SEO `quanto-costa`;

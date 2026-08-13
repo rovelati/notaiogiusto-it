@@ -1,6 +1,6 @@
 # Stato progetto NotaioGiusto.it
 
-Aggiornato: 2026-08-13 (blocco funnel + admin + SEO + deploy prep)
+Aggiornato: 2026-08-13 (blocco area clienti)
 
 ## Obiettivo
 
@@ -110,17 +110,39 @@ Accesso con `ADMIN_TOKEN` (cookie httpOnly). Vista elenco ultime richieste + des
 - noindex su query inutili/filtri listing e pagine private;
 - JSON-LD `FAQPage` + `Service` su `/quanto-costa/[servizio]`.
 
+### Area clienti
+
+File:
+
+- `src/pages/area-clienti/index.astro`
+- `src/pages/area-clienti/accedi.astro`
+- `src/pages/area-clienti/verifica.ts`
+- `src/pages/area-clienti/richieste.astro`
+- `src/pages/area-clienti/richieste/[id].astro`
+- `src/pages/area-clienti/esci.ts`
+- `src/lib/client-auth.ts`
+
+Flusso MVP:
+
+1. utente inserisce l’email della richiesta;
+2. sistema genera link temporaneo firmato (30 minuti);
+3. finché Mailgun non è attivo, il link viene mostrato in pagina;
+4. cookie sessione httpOnly;
+5. storico richieste + dettaglio pratica/notai selezionati.
+
+Secret: `AUTH_SECRET` (fallback a `ADMIN_TOKEN`).
+
 ### Deploy prep
 
 - `ecosystem.config.cjs`
 - `deploy/nginx/notaiogiusto.it.conf`
 - `deploy/README.md`
-- `.env.example` aggiornato a `notaiogiusto.it` + `ADMIN_TOKEN`
+- `.env.example` aggiornato a `notaiogiusto.it` + `ADMIN_TOKEN` + `AUTH_SECRET`
 
 ## Design
 
 Palette istituzionale blu/inchiostro/oro in `public/styles.css`.
-Aggiunti stili funnel e admin.
+Aggiunti stili funnel, admin e area clienti.
 
 ## Verifiche fatte (questo blocco)
 
@@ -130,28 +152,23 @@ Comando:
 npm run build
 ```
 
-Stato: OK.
+Stato build: OK.
 
 Smoke test locali su `127.0.0.1:4330`:
 
-- `/` → 200
-- `/preventivo` → 200
-- `/preventivo?step=2&servizio=autentica-copia&comune=Milano` → 200
-- `/preventivo?step=3...` → elenco notai con checkbox e label “Servizio solo richiesto”
-- `/quanto-costa/autentica-copia` → 200 + canonical + JSON-LD FAQPage
-- `/notai?servizio=...&comune=milano` → 200 + noindex su query
-- `/robots.txt` → 200
-- `/sitemap.xml` → 200
-- `/admin/login` → 200
-- `POST /api/quote-request` con 1 notaio → 303 `/grazie`
+- `/area-clienti` → 200
+- `/area-clienti/accedi` → 200
+- `/area-clienti/richieste` senza sessione → 302 `/area-clienti/accedi`
+- magic link → storico richieste 200
+- dettaglio richiesta → 200 con notai selezionati
 
 ## Cosa manca
 
 ### Priorità alta
 
 - Deploy reale su `/var/www/notaiogiusto-it` + Nginx + SSL + PM2.
-- Valorizzare `ADMIN_TOKEN` e `DATABASE_URL` in production `.env`.
-- Invio email reale a notai e richiedente (Mailgun).
+- Valorizzare `ADMIN_TOKEN`, `AUTH_SECRET` e `DATABASE_URL` in production `.env`.
+- Invio email reale a notai e richiedente (Mailgun), incluso magic link area clienti.
 - Pagina 404 in stile.
 - Sitemap segmentate se il file unico diventa troppo grande.
 
@@ -168,33 +185,23 @@ Smoke test locali su `127.0.0.1:4330`:
 ### UX/prodotto
 
 - Campi pratica specifici per tipologia (acquisto, successione, società...).
-- Area utente con storico richieste.
+- Confronto preventivi ricevuti e stati risposta notaio.
 - Area notaio con gestione profilo, servizi, listino e lead.
 - Tracking click telefono, preventivo, percorso, scheda.
 - Dashboard statistiche per notai.
 
 ## File toccati in questo blocco
 
-- `src/pages/preventivo/index.astro` (nuovo)
-- `src/pages/api/quote-request.ts`
-- `src/pages/admin/*` (nuovo)
-- `src/pages/robots.txt.ts` (nuovo)
-- `src/pages/sitemap.xml.ts` (nuovo)
+- `src/pages/area-clienti/*` (nuovo)
+- `src/lib/client-auth.ts` (nuovo)
 - `src/lib/notai.ts`
-- `src/lib/site.ts` (nuovo)
-- `src/lib/admin.ts` (nuovo)
 - `src/layouts/BaseLayout.astro`
-- `src/pages/index.astro`
-- `src/pages/notai/index.astro`
-- `src/pages/notai/[slug].astro`
-- `src/pages/quanto-costa/[servizio].astro`
 - `src/pages/grazie.astro`
-- `public/styles.css`
-- `astro.config.mjs`
+- `src/pages/robots.txt.ts`
 - `.env.example`
-- `deploy/*`
-- `ARCHITETTURA-NOTAI.md`
+- `public/styles.css`
 - `STATO-PROGETTO-NOTAI.md`
+- `ARCHITETTURA-NOTAI.md`
 
 ## Note per Cursor / Codex
 
@@ -203,3 +210,4 @@ Smoke test locali su `127.0.0.1:4330`:
 3. Dopo modifiche significative: `npm run build`, smoke test, commit, push, aggiornare questo file.
 4. Query DB in `src/lib/db.ts` e `src/lib/notai.ts`.
 5. Admin locale: impostare `ADMIN_TOKEN` nel `.env` non versionato.
+6. Area clienti: impostare `AUTH_SECRET` (o riusare `ADMIN_TOKEN` come fallback).

@@ -1,0 +1,73 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { getClientEmail } from '../../../lib/client-auth';
+import { titleCase } from '../../../lib/format';
+import { getQuoteRecipients, getQuoteRequestForEmail } from '../../../lib/notai';
+
+const email = getClientEmail(Astro.cookies);
+if (!email) {
+  return Astro.redirect('/area-clienti/accedi');
+}
+
+const id = Astro.params.id || '';
+const request = await getQuoteRequestForEmail(id, email);
+if (!request) {
+  return Astro.redirect('/area-clienti/richieste');
+}
+const recipients = await getQuoteRecipients(request.id);
+const details = request.case_details || {};
+---
+<BaseLayout title={`${request.service_name} | Area clienti`} noindex={true}>
+  <section class="section">
+    <div class="section-heading">
+      <span class="eyebrow">Dettaglio richiesta</span>
+      <h1>{request.service_name}</h1>
+      <p>
+        {request.comune ? titleCase(request.comune) : 'Località non indicata'}
+        · inviata il {new Date(request.created_at).toLocaleString('it-IT')}
+        · stato <strong>{request.status}</strong>
+      </p>
+    </div>
+
+    <div class="funnel-stack">
+      <div class="card funnel-card">
+        <h2>Dati pratica</h2>
+        <div class="summary-grid">
+          <div><span>Email</span><strong>{request.requester_email}</strong></div>
+          <div><span>Nome</span><strong>{request.requester_name || '—'}</strong></div>
+          <div><span>Telefono</span><strong>{request.requester_phone || '—'}</strong></div>
+          <div><span>Urgenza</span><strong>{String(details.urgency || '—')}</strong></div>
+          <div><span>Valore indicativo</span><strong>{String(details.property_value || '—')}</strong></div>
+          <div><span>Parti</span><strong>{String(details.parties || '—')}</strong></div>
+          <div><span>Documenti</span><strong>{String(details.documents_ready || '—')}</strong></div>
+          <div><span>Origine servizio</span><strong>Richiesto dall’utente</strong></div>
+        </div>
+        {request.requester_message && <p class="summary-message"><strong>Messaggio:</strong> {request.requester_message}</p>}
+      </div>
+
+      <div class="card funnel-card">
+        <h2>Notai selezionati</h2>
+        <ul class="summary-notaries">
+          {recipients.map((item) => (
+            <li>
+              <strong>{item.full_name ? titleCase(item.full_name) : 'Notaio'}</strong>
+              <span>
+                {item.comune ? titleCase(item.comune) : '—'}
+                {item.source_slug ? ` · ` : ''}
+                {item.source_slug ? <a href={`/notai/${item.source_slug}`}>Scheda</a> : null}
+                {' · '}{item.status}
+              </span>
+            </li>
+          ))}
+        </ul>
+        {!recipients.length && <div class="notice">Nessun notaio associato a questa richiesta.</div>}
+        <p class="helper-text">I preventivi di risposta degli studi arriveranno quando collegheremo l’invio email e l’inbox risposte.</p>
+      </div>
+
+      <div class="funnel-actions">
+        <a class="btn secondary" href="/area-clienti/richieste">Torna allo storico</a>
+        <a class="btn blue" href="/preventivo">Nuova richiesta</a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

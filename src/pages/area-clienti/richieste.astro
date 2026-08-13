@@ -1,0 +1,60 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getClientEmail } from '../../lib/client-auth';
+import { titleCase } from '../../lib/format';
+import { listQuoteRequestsByEmail } from '../../lib/notai';
+
+const email = getClientEmail(Astro.cookies);
+if (!email) {
+  return Astro.redirect('/area-clienti/accedi');
+}
+
+const requests = await listQuoteRequestsByEmail(email, 50);
+---
+<BaseLayout title="Le tue richieste | Area clienti" noindex={true} canonicalPath="/area-clienti/richieste">
+  <section class="section">
+    <div class="section-heading">
+      <span class="eyebrow">Area clienti</span>
+      <h1>Le tue richieste</h1>
+      <p>Accesso come <strong>{email}</strong>. Qui trovi lo storico dei preventivi inviati.</p>
+    </div>
+    <div class="admin-toolbar">
+      <a class="btn blue" href="/preventivo">Nuova richiesta</a>
+      <a class="btn secondary" href="/area-clienti/esci">Esci</a>
+    </div>
+
+    <div class="list">
+      {requests.map((item) => (
+        <article class="card admin-request">
+          <div class="admin-request__head">
+            <div>
+              <h2>{item.service_name}</h2>
+              <p>
+                {item.comune ? titleCase(item.comune) : 'Località non indicata'}
+                · {new Date(item.created_at).toLocaleString('it-IT')}
+                · stato {item.status}
+              </p>
+            </div>
+            <span class="pill green">{item.recipient_count} notai</span>
+          </div>
+          <div class="summary-grid">
+            <div><span>Destinatari</span><strong>{item.recipient_names || 'Nessun notaio selezionato'}</strong></div>
+            <div><span>Telefono indicato</span><strong>{item.requester_phone || '—'}</strong></div>
+          </div>
+          {item.requester_message && <p class="summary-message"><strong>Messaggio:</strong> {item.requester_message}</p>}
+          <div class="funnel-actions">
+            <a class="btn secondary" href={`/area-clienti/richieste/${item.id}`}>Apri dettaglio</a>
+          </div>
+        </article>
+      ))}
+      {!requests.length && (
+        <div class="notice">
+          Non risultano richieste per questa email.
+          <div class="funnel-actions">
+            <a class="btn blue" href="/preventivo">Invia la prima richiesta</a>
+          </div>
+        </div>
+      )}
+    </div>
+  </section>
+</BaseLayout>

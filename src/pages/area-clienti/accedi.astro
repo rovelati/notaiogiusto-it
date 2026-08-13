@@ -1,0 +1,73 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import {
+  createMagicLoginToken,
+  getClientEmail,
+  hasClientAuthSecret,
+  isMailConfigured,
+} from '../../lib/client-auth';
+import { absoluteUrl } from '../../lib/site';
+
+if (getClientEmail(Astro.cookies)) {
+  return Astro.redirect('/area-clienti/richieste');
+}
+
+let error = Astro.url.searchParams.get('errore') === 'link'
+  ? 'Link non valido o scaduto. Generane uno nuovo.'
+  : '';
+let magicUrl = '';
+let submittedEmail = '';
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const email = String(form.get('email') || '').trim().toLowerCase();
+  submittedEmail = email;
+
+  if (!email.includes('@')) {
+    error = 'Inserisci un’email valida.';
+  } else if (!hasClientAuthSecret()) {
+    error = 'AUTH_SECRET o ADMIN_TOKEN non configurato nel .env.';
+  } else {
+    const token = createMagicLoginToken(email);
+    magicUrl = absoluteUrl(`/area-clienti/verifica?token=${encodeURIComponent(token)}`);
+    // Mailgun non ancora collegato: in locale mostriamo il link di accesso.
+    if (isMailConfigured()) {
+      // Placeholder: quando Mailgun sarà attivo, inviare magicUrl e non mostrarlo in pagina.
+    }
+  }
+}
+---
+<BaseLayout title="Accedi area clienti | NotaioGiusto.it" noindex={true} canonicalPath="/area-clienti/accedi">
+  <section class="section">
+    <form class="card funnel-card" method="post" action="/area-clienti/accedi">
+      <span class="eyebrow">Accesso clienti</span>
+      <h1>Entra con la tua email</h1>
+      <p class="lead">Usa la stessa email con cui hai inviato la richiesta di preventivo. Ti diamo un link temporaneo valido 30 minuti.</p>
+      {error && <div class="error">{error}</div>}
+      {magicUrl ? (
+        <div class="success">
+          Link di accesso pronto{submittedEmail ? ` per ${submittedEmail}` : ''}.
+          {isMailConfigured()
+            ? ' In produzione arriverà via email.'
+            : ' Mailgun non è ancora attivo: usa il link qui sotto.'}
+        </div>
+      ) : (
+        <label>
+          Email
+          <input required type="email" name="email" value={submittedEmail} placeholder="nome@email.it" autocomplete="email" />
+        </label>
+      )}
+      {magicUrl && (
+        <div class="notice">
+          <strong>Link di accesso</strong>
+          <p><a href={magicUrl}>{magicUrl}</a></p>
+        </div>
+      )}
+      <div class="funnel-actions">
+        {!magicUrl && <button class="btn blue" type="submit">Genera link di accesso</button>}
+        {magicUrl && <a class="btn blue" href={magicUrl}>Apri area clienti</a>}
+        <a class="btn secondary" href="/area-clienti">Indietro</a>
+      </div>
+    </form>
+  </section>
+</BaseLayout>

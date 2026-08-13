@@ -1,0 +1,38 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getClientEmail } from '../../lib/client-auth';
+
+const email = getClientEmail(Astro.cookies);
+if (email) {
+  return Astro.redirect('/area-clienti/richieste');
+}
+---
+<BaseLayout
+  title="Area clienti | NotaioGiusto.it"
+  description="Accedi allo storico delle tue richieste di preventivo notarile e segui lo stato delle pratiche avviate."
+  noindex={true}
+  canonicalPath="/area-clienti"
+>
+  <section class="hero">
+    <div>
+      <span class="eyebrow">Area clienti</span>
+      <h1>Le tue richieste di preventivo, in un unico posto.</h1>
+      <p class="lead">
+        Accedi con l’email usata per la richiesta: trovi storico pratiche, notai selezionati e stato di avanzamento.
+      </p>
+      <div class="actions">
+        <a class="btn blue" href="/area-clienti/accedi">Accedi</a>
+        <a class="btn secondary" href="/preventivo">Nuova richiesta</a>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Cosa trovi nell’area clienti</h2>
+      <div class="hero-points">
+        <span>Storico richieste preventivo</span>
+        <span>Notai selezionati per ogni pratica</span>
+        <span>Dettagli inviati allo studio</span>
+      </div>
+      <p class="helper-text">Accesso senza password: ricevi un link temporaneo all’email della richiesta.</p>
+    </div>
+  </section>
+</BaseLayout>

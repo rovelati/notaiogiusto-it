@@ -166,13 +166,14 @@ textarea { min-height: 120px; resize: vertical; }
 .summary-message { color: #344054; line-height: 1.7; }
 .summary-notaries { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
 .summary-notaries li { display: flex; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
-.admin-toolbar { margin: 0 0 18px; }
+.admin-toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 18px; }
 .admin-request__head { display: flex; justify-content: space-between; gap: 16px; align-items: start; margin-bottom: 8px; }
 .admin-request__head h2 { margin: 0 0 8px; font-size: 26px; }
 .admin-request__head p { margin: 0; color: #667085; }
 .admin-json { overflow: auto; padding: 14px; border-radius: 8px; background: #0f2746; color: #e8eef7; font-size: 13px; }
 .quote-box .btn + .helper-text { margin-top: 14px; }
 .quote-box .btn.secondary { margin-top: 10px; width: 100%; }
+.notice a { color: var(--brand); font-weight: 900; word-break: break-all; }
 @media (max-width: 900px) {
   .site-header { align-items: flex-start; }
   .nav { gap: 12px; flex-wrap: wrap; justify-content: flex-end; font-size: 14px; }

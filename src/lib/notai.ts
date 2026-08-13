@@ -171,6 +171,68 @@ export async function listQuoteRequests(limit = 100) {
   );
 }
 
+export async function listQuoteRequestsByEmail(email: string, limit = 50) {
+  return query<QuoteRequestRow>(
+    `
+    select qr.id, qr.service_slug, qr.service_name, qr.comune,
+           qr.requester_email, qr.requester_name, qr.requester_phone, qr.requester_message,
+           qr.case_details, qr.status, qr.source_url, qr.created_at::text,
+           coalesce(string_agg(n.full_name, ', ' order by n.full_name), '') as recipient_names,
+           count(qrr.id)::text as recipient_count
+    from notai.quote_requests qr
+    left join notai.quote_request_recipients qrr on qrr.quote_request_id = qr.id
+    left join notai.notaries n on n.id = qrr.notary_id
+    where lower(qr.requester_email) = lower($1)
+    group by qr.id
+    order by qr.created_at desc
+    limit $2
+    `,
+    [email.trim().toLowerCase(), limit],
+  );
+}
+
+export async function getQuoteRequestForEmail(id: string, email: string) {
+  const rows = await query<QuoteRequestRow>(
+    `
+    select qr.id, qr.service_slug, qr.service_name, qr.comune,
+           qr.requester_email, qr.requester_name, qr.requester_phone, qr.requester_message,
+           qr.case_details, qr.status, qr.source_url, qr.created_at::text,
+           coalesce(string_agg(n.full_name, ', ' order by n.full_name), '') as recipient_names,
+           count(qrr.id)::text as recipient_count
+    from notai.quote_requests qr
+    left join notai.quote_request_recipients qrr on qrr.quote_request_id = qr.id
+    left join notai.notaries n on n.id = qrr.notary_id
+    where qr.id = $1 and lower(qr.requester_email) = lower($2)
+    group by qr.id
+    limit 1
+    `,
+    [id, email.trim().toLowerCase()],
+  );
+  return rows[0] || null;
+}
+
+export type QuoteRecipientRow = {
+  notary_id: string | null;
+  full_name: string | null;
+  source_slug: string | null;
+  comune: string | null;
+  match_type: string;
+  status: string;
+};
+
+export async function getQuoteRecipients(quoteRequestId: string) {
+  return query<QuoteRecipientRow>(
+    `
+    select qrr.notary_id, n.full_name, n.source_slug, n.comune, qrr.match_type, qrr.status
+    from notai.quote_request_recipients qrr
+    left join notai.notaries n on n.id = qrr.notary_id
+    where qrr.quote_request_id = $1
+    order by n.full_name nulls last
+    `,
+    [quoteRequestId],
+  );
+}
+
 export async function searchNotaries({ comune, q, limit = 12 }: { comune?: string; q?: string; limit?: number }) {
   const searchTerm = (q || '').trim();
   const cityTerm = (comune || '').replace(/-/g, ' ').trim();
