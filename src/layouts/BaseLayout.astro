@@ -11,6 +11,13 @@ const {
 
 const canonical = absoluteUrl(canonicalPath || Astro.url.pathname);
 const jsonLdBlocks = Array.isArray(jsonLd) ? jsonLd : jsonLd ? [jsonLd] : [];
+const navItems = [
+  { href: '/quanto-costa', label: 'Quanto costa?' },
+  { href: '/notai', label: 'Cerca notai' },
+  { href: '/preventivo', label: 'Preventivo' },
+  { href: '/area-clienti', label: 'Area clienti' },
+  { href: '/area-notai', label: 'Area notai' },
+];
 ---
 <!doctype html>
 <html lang="it">
@@ -35,12 +42,21 @@ const jsonLdBlocks = Array.isArray(jsonLd) ? jsonLd : jsonLd ? [jsonLd] : [];
           <small>Notai, costi e preventivi</small>
         </span>
       </a>
-      <nav class="nav">
-        <a href="/quanto-costa">Quanto costa?</a>
-        <a href="/notai">Cerca notai</a>
-        <a href="/preventivo">Preventivo</a>
-        <a href="/area-clienti">Area clienti</a>
-        <a href="/area-notai">Area notai</a>
+      <button
+        class="nav-toggle"
+        type="button"
+        aria-expanded="false"
+        aria-controls="site-nav"
+        aria-label="Apri menu"
+      >
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <nav class="nav" id="site-nav">
+        {navItems.map((item) => (
+          <a href={item.href}>{item.label}</a>
+        ))}
       </nav>
     </header>
     <main>
@@ -50,5 +66,25 @@ const jsonLdBlocks = Array.isArray(jsonLd) ? jsonLd : jsonLd ? [jsonLd] : [];
       <strong>NotaioGiusto.it</strong>
       <span>I costi sono indicativi: imposte e spese variano in base alla pratica.</span>
     </footer>
+    <script>
+      const toggle = document.querySelector('.nav-toggle');
+      const nav = document.querySelector('#site-nav');
+      if (toggle && nav) {
+        const setOpen = (open) => {
+          document.body.classList.toggle('nav-open', open);
+          toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+          toggle.setAttribute('aria-label', open ? 'Chiudi menu' : 'Apri menu');
+        };
+        toggle.addEventListener('click', () => {
+          setOpen(!document.body.classList.contains('nav-open'));
+        });
+        nav.querySelectorAll('a').forEach((link) => {
+          link.addEventListener('click', () => setOpen(false));
+        });
+        window.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape') setOpen(false);
+        });
+      }
+    </script>
   </body>
 </html>
