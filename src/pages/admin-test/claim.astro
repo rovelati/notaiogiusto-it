@@ -1,0 +1,82 @@
+---
+import AdminTestNav from '../../components/AdminTestNav.astro';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { isAdminAuthenticated } from '../../lib/admin';
+import { listAdminClaims, updateClaimStatus } from '../../lib/admin-data';
+import { titleCase } from '../../lib/format';
+
+if (!isAdminAuthenticated(Astro.cookies)) {
+  return Astro.redirect('/admin/login?next=/admin-test/claim');
+}
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const id = String(form.get('id') || '');
+  const status = String(form.get('status') || '') as 'approved' | 'rejected' | 'pending';
+  if (id && ['approved', 'rejected', 'pending'].includes(status)) {
+    await updateClaimStatus(id, status);
+  }
+  return Astro.redirect('/admin-test/claim');
+}
+
+const claims = await listAdminClaims(150);
+---
+<BaseLayout title="Claim | Admin test" noindex={true}>
+  <section class="section">
+    <div class="section-heading">
+      <span class="eyebrow">Admin test</span>
+      <h1>Claim profili</h1>
+      <p>Richieste di presa possesso scheda notaio. Approva o rifiuta manualmente.</p>
+    </div>
+    <AdminTestNav current="claim" />
+    <div class="list">
+      {claims.map((claim) => (
+        <article class="card admin-request">
+          <div class="admin-request__head">
+            <div>
+              <h2>{claim.notary_name ? titleCase(claim.notary_name) : 'Notaio'}</h2>
+              <p>
+                {claim.comune ? titleCase(claim.comune) : '—'}
+                · {new Date(claim.created_at).toLocaleString('it-IT')}
+                · stato <strong>{claim.status}</strong>
+              </p>
+            </div>
+            <span class={`pill ${claim.status === 'pending' ? 'gold' : 'green'}`}>{claim.status}</span>
+          </div>
+          <div class="summary-grid">
+            <div><span>Email richiedente</span><strong>{claim.claimant_email}</strong></div>
+            <div><span>Nome</span><strong>{claim.claimant_name || '—'}</strong></div>
+            <div><span>Telefono</span><strong>{claim.claimant_phone || '—'}</strong></div>
+            <div>
+              <span>Scheda</span>
+              <strong>
+                {claim.notary_slug
+                  ? <a href={`/notai/${claim.notary_slug}`}>Apri scheda</a>
+                  : '—'}
+              </strong>
+            </div>
+          </div>
+          {claim.notes && <p class="summary-message"><strong>Note:</strong> {claim.notes}</p>}
+          <div class="funnel-actions">
+            <form method="post" action="/admin-test/claim">
+              <input type="hidden" name="id" value={claim.id} />
+              <input type="hidden" name="status" value="approved" />
+              <button class="btn blue" type="submit">Approva</button>
+            </form>
+            <form method="post" action="/admin-test/claim">
+              <input type="hidden" name="id" value={claim.id} />
+              <input type="hidden" name="status" value="rejected" />
+              <button class="btn secondary" type="submit">Rifiuta</button>
+            </form>
+            <form method="post" action="/admin-test/claim">
+              <input type="hidden" name="id" value={claim.id} />
+              <input type="hidden" name="status" value="pending" />
+              <button class="btn secondary" type="submit">Riporta pending</button>
+            </form>
+          </div>
+        </article>
+      ))}
+      {!claims.length && <div class="notice">Nessun claim presente.</div>}
+    </div>
+  </section>
+</BaseLayout>

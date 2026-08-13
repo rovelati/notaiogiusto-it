@@ -1,0 +1,68 @@
+---
+import AdminTestNav from '../../components/AdminTestNav.astro';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { isAdminAuthenticated } from '../../lib/admin';
+import { titleCase } from '../../lib/format';
+import { listQuoteRequests } from '../../lib/notai';
+
+if (!isAdminAuthenticated(Astro.cookies)) {
+  return Astro.redirect('/admin/login?next=/admin-test/preventivi');
+}
+
+const q = (Astro.url.searchParams.get('q') || '').trim().toLowerCase();
+const requests = await listQuoteRequests(200);
+const filtered = q
+  ? requests.filter((item) =>
+      [item.service_name, item.comune, item.requester_email, item.requester_name, item.recipient_names]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(q)),
+    )
+  : requests;
+---
+<BaseLayout title="Preventivi | Admin test" noindex={true}>
+  <section class="section">
+    <div class="section-heading">
+      <span class="eyebrow">Admin test</span>
+      <h1>Preventivi</h1>
+      <p>{filtered.length} richieste{q ? ` filtrate per “${q}”` : ''}.</p>
+    </div>
+    <AdminTestNav current="preventivi" />
+    <form class="search-panel compact-search" method="get" action="/admin-test/preventivi">
+      <div class="form-grid">
+        <label>Cerca <input name="q" value={q} placeholder="email, comune, servizio, notaio" /></label>
+        <button class="btn" type="submit">Filtra</button>
+      </div>
+    </form>
+    <div class="list">
+      {filtered.map((item) => (
+        <article class="card admin-request">
+          <div class="admin-request__head">
+            <div>
+              <h2>{item.service_name}</h2>
+              <p>
+                {item.comune ? titleCase(item.comune) : 'Località non indicata'}
+                · {new Date(item.created_at).toLocaleString('it-IT')}
+                · stato {item.status}
+              </p>
+            </div>
+            <span class="pill green">{item.recipient_count} notai</span>
+          </div>
+          <div class="summary-grid">
+            <div><span>Email</span><strong>{item.requester_email}</strong></div>
+            <div><span>Nome</span><strong>{item.requester_name || '—'}</strong></div>
+            <div><span>Telefono</span><strong>{item.requester_phone || '—'}</strong></div>
+            <div><span>Destinatari</span><strong>{item.recipient_names || 'Nessun notaio'}</strong></div>
+          </div>
+          {item.requester_message && <p class="summary-message"><strong>Messaggio:</strong> {item.requester_message}</p>}
+          {item.case_details && (
+            <details>
+              <summary>Dettagli pratica / intake</summary>
+              <pre class="admin-json">{JSON.stringify(item.case_details, null, 2)}</pre>
+            </details>
+          )}
+        </article>
+      ))}
+      {!filtered.length && <div class="notice">Nessuna richiesta trovata.</div>}
+    </div>
+  </section>
+</BaseLayout>

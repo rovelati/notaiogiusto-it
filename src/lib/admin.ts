@@ -3,7 +3,13 @@ import type { AstroCookies } from 'astro';
 const COOKIE_NAME = 'ng_admin';
 
 export function getAdminToken() {
-  return String(import.meta.env.ADMIN_TOKEN || process.env.ADMIN_TOKEN || '').trim();
+  return String(
+    import.meta.env.ADMIN_TOKEN ||
+      process.env.ADMIN_TOKEN ||
+      import.meta.env.AUTH_SECRET ||
+      process.env.AUTH_SECRET ||
+      '',
+  ).trim();
 }
 
 export function isAdminAuthenticated(cookies: AstroCookies) {

@@ -1,6 +1,6 @@
 # Stato progetto NotaioGiusto.it
 
-Aggiornato: 2026-08-13 (blocco mappe embedded listing + scheda)
+Aggiornato: 2026-08-13 (blocco intake prestazioni + admin-test)
 
 ## Obiettivo
 
@@ -99,16 +99,28 @@ Salvataggio:
 - `notai.quote_requests` con `case_details` (urgenza, valore, parti, documenti, selected_notary_ids, `service_source=user_request`);
 - fino a 3 righe in `notai.quote_request_recipients` (`match_type=selected_by_user`).
 
-### Area admin minima
+### Area admin-test (stile Veterinari.org)
 
-File:
+Route: `/admin-test` (login `/admin/login`).
 
-- `src/pages/admin/login.astro`
-- `src/pages/admin/richieste.astro`
-- `src/pages/admin/logout.ts`
-- `src/lib/admin.ts`
+Sezioni:
 
-Accesso con `ADMIN_TOKEN` (cookie httpOnly). Vista elenco ultime richieste + destinatari + JSON pratica.
+- Overview KPI (notai, geo, email, preventivi, claim, clienti, immobili)
+- Preventivi (filtro + intake/case_details)
+- Clienti (email uniche + fascicolo immobili)
+- Arricchimenti (coverage + `notary_enrichments`)
+- Claim (approve/reject)
+- Tassonomia servizi
+
+Auth: `ADMIN_TOKEN` con fallback `AUTH_SECRET`.
+
+### Intake prestazioni nel preventivo
+
+Profili tipizzati in `src/lib/service-intake.ts`:
+
+- acquisto, mutuo, successione, donazione, società, procura, autentica, generico
+
+Il passo 2 del funnel mostra intro, documenti utili e campi specifici; i valori finiscono in `case_details.intake`.
 
 ### SEO
 

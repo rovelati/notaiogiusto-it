@@ -200,6 +200,20 @@ textarea { min-height: 120px; resize: vertical; }
 .share-toggle { margin: 8px 0 4px; }
 .property-attach { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); }
 .property-attach h3 { margin: 0 0 8px; font-size: 22px; }
+.service-brief { margin-bottom: 18px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+.service-brief > p { color: #475467; line-height: 1.7; }
+.doc-hints { margin: 16px 0; padding: 16px; border-radius: 8px; background: #f8fbff; border: 1px solid #d8e2ef; }
+.doc-hints strong { display: block; margin-bottom: 10px; color: var(--brand); }
+.service-pick-groups { display: grid; gap: 22px; }
+.service-pick-groups > div > strong { display: block; margin-bottom: 10px; color: #344054; }
+.service-pick-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.service-pick { display: grid; gap: 6px; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: #fbfdff; }
+.service-pick span { font-weight: 900; color: var(--navy); }
+.service-pick em { color: #667085; font-style: normal; font-size: 14px; line-height: 1.45; }
+.service-pick small { color: var(--brand); font-weight: 850; }
+.full-span { grid-column: 1 / -1; }
+.admin-stats-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.admin-stats-grid .stat span { display: block; margin-top: 6px; color: #667085; font-weight: 750; }
 @media (max-width: 900px) {
   .site-header { align-items: center; flex-wrap: wrap; gap: 12px; }
   .brand { min-width: 0; flex: 1; }
@@ -224,7 +238,7 @@ textarea { min-height: 120px; resize: vertical; }
   body.nav-open .nav-toggle span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
   body.nav-open .nav-toggle span:nth-child(2) { opacity: 0; }
   body.nav-open .nav-toggle span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
-  .hero, .two-col, .form-grid, .grid, .service-layout, .info-grid, .hero-summary, .notary-hero__inner, .notary-layout, .contact-grid, .service-chip-grid, .notary-result-row, .funnel-grid, .summary-grid, .use-case-grid, .listing-layout { grid-template-columns: 1fr; }
+  .hero, .two-col, .form-grid, .grid, .service-layout, .info-grid, .hero-summary, .notary-hero__inner, .notary-layout, .contact-grid, .service-chip-grid, .notary-result-row, .funnel-grid, .summary-grid, .use-case-grid, .listing-layout, .service-pick-grid, .admin-stats-grid { grid-template-columns: 1fr; }
   .summary-notaries li, .admin-request__head { flex-direction: column; }
   .side-stack, .notary-side, .listing-map-panel { position: static; }
   .listing-layout .result-list { order: 2; }

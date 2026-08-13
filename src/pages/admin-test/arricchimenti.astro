@@ -1,0 +1,57 @@
+---
+import AdminTestNav from '../../components/AdminTestNav.astro';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { isAdminAuthenticated } from '../../lib/admin';
+import { getAdminOverview, getEnrichmentBreakdown } from '../../lib/admin-data';
+
+if (!isAdminAuthenticated(Astro.cookies)) {
+  return Astro.redirect('/admin/login?next=/admin-test/arricchimenti');
+}
+
+const [stats, breakdown] = await Promise.all([getAdminOverview(), getEnrichmentBreakdown()]);
+const published = Number(stats.notaries) || 1;
+const coverage = [
+  { label: 'Email', value: stats.with_email, pct: Math.round((Number(stats.with_email) / published) * 100) },
+  { label: 'Telefono', value: stats.with_phone, pct: Math.round((Number(stats.with_phone) / published) * 100) },
+  { label: 'Sito web', value: stats.with_website, pct: Math.round((Number(stats.with_website) / published) * 100) },
+  { label: 'Coordinate geo', value: stats.with_geo, pct: Math.round((Number(stats.with_geo) / published) * 100) },
+  { label: 'Fonte Notariato', value: stats.official, pct: Math.round((Number(stats.official) / published) * 100) },
+  { label: 'Servizi collegati (righe)', value: stats.notary_services_links, pct: null },
+];
+---
+<BaseLayout title="Arricchimenti | Admin test" noindex={true}>
+  <section class="section">
+    <div class="section-heading">
+      <span class="eyebrow">Admin test</span>
+      <h1>Arricchimenti</h1>
+      <p>
+        Copertura anagrafica e stato delle fonti di enrichment. Distinzione invariata:
+        ufficiale Notariato vs dato arricchito vs servizio dichiarato/probabile.
+      </p>
+    </div>
+    <AdminTestNav current="arricchimenti" />
+
+    <div class="admin-stats-grid">
+      {coverage.map((item) => (
+        <div class="stat">
+          <strong>{Number(item.value).toLocaleString('it-IT')}{item.pct != null ? ` · ${item.pct}%` : ''}</strong>
+          <span>{item.label}</span>
+        </div>
+      ))}
+    </div>
+
+    <div class="card funnel-card" style="margin-top:24px;max-width:none">
+      <h2>Record `notai.notary_enrichments`</h2>
+      <div class="list">
+        {breakdown.map((row) => (
+          <div class="summary-grid" style="margin:0">
+            <div><span>Fonte</span><strong>{row.source}</strong></div>
+            <div><span>Stato</span><strong>{row.status}</strong></div>
+            <div><span>Record</span><strong>{Number(row.total).toLocaleString('it-IT')}</strong></div>
+          </div>
+        ))}
+        {!breakdown.length && <div class="notice">Nessun enrichment ancora registrato in tabella dedicata.</div>}
+      </div>
+    </div>
+  </section>
+</BaseLayout>

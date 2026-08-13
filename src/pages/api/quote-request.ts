@@ -5,6 +5,7 @@ import {
   getPropertiesByIdsForEmail,
   linkPropertiesToQuoteRequest,
 } from '../../lib/properties';
+import { collectIntakeValues, getServiceIntake } from '../../lib/service-intake';
 
 export const prerender = false;
 
@@ -63,9 +64,19 @@ export const POST: APIRoute = async ({ request, redirect }) => {
     )
     .digest('hex');
 
-  const serviceRows = await query<{ id: string; price_avg_cents: number | null; name: string; plain_language_name: string | null }>(
+  const serviceRows = await query<{
+    id: string;
+    slug: string;
+    category: string | null;
+    user_intent: string | null;
+    required_documents: unknown[] | null;
+    price_avg_cents: number | null;
+    name: string;
+    plain_language_name: string | null;
+  }>(
     `
-    select st.id, st.name, st.plain_language_name, b.price_avg_cents
+    select st.id, st.slug, st.name, st.plain_language_name, st.category, st.user_intent,
+           st.required_documents, b.price_avg_cents
     from notai.services_taxonomy st
     left join lateral (
       select price_avg_cents
@@ -85,13 +96,17 @@ export const POST: APIRoute = async ({ request, redirect }) => {
   }
 
   const resolvedServiceName = service.plain_language_name || service.name || serviceName;
+  const intake = getServiceIntake(service);
+  const intakeValues = collectIntakeValues(form, intake.fields);
   const caseDetails = {
     mvp: true,
     funnel: true,
-    urgency: urgency || null,
-    property_value: propertyValue || null,
+    urgency: urgency || intakeValues.timing_preference || null,
+    property_value: propertyValue || intakeValues.deal_value || intakeValues.loan_amount || null,
     parties: parties || null,
     documents_ready: documentsReady || null,
+    intake_profile: intake.profile,
+    intake: intakeValues,
     selected_notary_ids: notaryIds,
     selected_property_ids: linkedProperties.map((item) => item.id),
     properties_snapshot: linkedProperties.map((item) => ({

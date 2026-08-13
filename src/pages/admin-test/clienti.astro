@@ -1,0 +1,40 @@
+---
+import AdminTestNav from '../../components/AdminTestNav.astro';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { isAdminAuthenticated } from '../../lib/admin';
+import { listAdminClients } from '../../lib/admin-data';
+
+if (!isAdminAuthenticated(Astro.cookies)) {
+  return Astro.redirect('/admin/login?next=/admin-test/clienti');
+}
+
+const clients = await listAdminClients(150);
+---
+<BaseLayout title="Clienti | Admin test" noindex={true}>
+  <section class="section">
+    <div class="section-heading">
+      <span class="eyebrow">Admin test</span>
+      <h1>Clienti</h1>
+      <p>Email che hanno inviato almeno una richiesta, con immobili nel fascicolo se presenti.</p>
+    </div>
+    <AdminTestNav current="clienti" />
+    <div class="list">
+      {clients.map((client) => (
+        <article class="card admin-request">
+          <div class="admin-request__head">
+            <div>
+              <h2>{client.email}</h2>
+              <p>Ultima richiesta: {new Date(client.last_request_at).toLocaleString('it-IT')}</p>
+            </div>
+            <span class="pill green">{client.requests} richieste</span>
+          </div>
+          <div class="summary-grid">
+            <div><span>Immobili fascicolo</span><strong>{client.properties}</strong></div>
+            <div><span>Servizi richiesti</span><strong>{client.sample_services || '—'}</strong></div>
+          </div>
+        </article>
+      ))}
+      {!clients.length && <div class="notice">Nessun cliente ancora presente.</div>}
+    </div>
+  </section>
+</BaseLayout>

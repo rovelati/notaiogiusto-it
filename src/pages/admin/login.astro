@@ -2,20 +2,25 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { getAdminToken, isAdminAuthenticated, setAdminCookie } from '../../lib/admin';
 
+const nextRaw = Astro.url.searchParams.get('next') || '/admin-test';
+const next = nextRaw.startsWith('/admin') ? nextRaw : '/admin-test';
+
 if (isAdminAuthenticated(Astro.cookies)) {
-  return Astro.redirect('/admin/richieste');
+  return Astro.redirect(next);
 }
 
 let error = '';
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
   const token = String(form.get('token') || '').trim();
+  const redirectTo = String(form.get('next') || next);
+  const safeNext = redirectTo.startsWith('/admin') ? redirectTo : '/admin-test';
   const expected = getAdminToken();
   if (!expected) {
-    error = 'ADMIN_TOKEN non configurato sul server.';
+    error = 'ADMIN_TOKEN / AUTH_SECRET non configurato sul server.';
   } else if (token && token === expected) {
     setAdminCookie(Astro.cookies, token);
-    return Astro.redirect('/admin/richieste');
+    return Astro.redirect(safeNext);
   } else {
     error = 'Token non valido.';
   }
@@ -24,9 +29,10 @@ if (Astro.request.method === 'POST') {
 <BaseLayout title="Admin login | NotaioGiusto.it" noindex={true}>
   <section class="section">
     <form class="card funnel-card" method="post" action="/admin/login">
-      <h1>Area admin</h1>
-      <p class="lead">Accesso riservato per consultare le richieste di preventivo.</p>
+      <h1>Admin test</h1>
+      <p class="lead">Accesso riservato a overview, preventivi, clienti, arricchimenti, claim e tassonomia.</p>
       {error && <div class="error">{error}</div>}
+      <input type="hidden" name="next" value={next} />
       <label>Token admin <input required type="password" name="token" autocomplete="current-password" /></label>
       <div class="funnel-actions">
         <button class="btn navy" type="submit">Entra</button>

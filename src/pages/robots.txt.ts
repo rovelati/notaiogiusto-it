@@ -9,6 +9,8 @@ export const GET: APIRoute = async () => {
     'Allow: /',
     'Disallow: /admin',
     'Disallow: /admin/',
+    'Disallow: /admin-test',
+    'Disallow: /admin-test/',
     'Disallow: /area-clienti',
     'Disallow: /claim',
     'Disallow: /preventivo',

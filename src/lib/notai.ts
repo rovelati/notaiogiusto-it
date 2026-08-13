@@ -98,11 +98,31 @@ export async function getService(slug: string) {
 }
 
 export async function getAllServices() {
-  return query<Pick<Service, 'id' | 'slug' | 'name' | 'plain_language_name' | 'category'>>(
+  return query<
+    Pick<
+      Service,
+      | 'id'
+      | 'slug'
+      | 'name'
+      | 'plain_language_name'
+      | 'category'
+      | 'user_intent'
+      | 'complexity'
+      | 'price_avg_cents'
+    >
+  >(
     `
-    select id, slug, name, plain_language_name, category
-    from notai.services_taxonomy
-    order by priority asc, name asc
+    select st.id, st.slug, st.name, st.plain_language_name, st.category, st.user_intent, st.complexity,
+           spb.price_avg_cents
+    from notai.services_taxonomy st
+    left join lateral (
+      select price_avg_cents
+      from notai.service_price_benchmarks b
+      where b.service_id = st.id and b.location_scope = 'national'
+      order by b.confidence desc nulls last
+      limit 1
+    ) spb on true
+    order by st.priority asc, st.name asc
     `,
   );
 }

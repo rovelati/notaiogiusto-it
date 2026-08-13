@@ -1,0 +1,41 @@
+---
+import AdminTestNav from '../../components/AdminTestNav.astro';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { isAdminAuthenticated } from '../../lib/admin';
+import { listAdminServices } from '../../lib/admin-data';
+import { euro } from '../../lib/format';
+
+if (!isAdminAuthenticated(Astro.cookies)) {
+  return Astro.redirect('/admin/login?next=/admin-test/tassonomia');
+}
+
+const services = await listAdminServices(200);
+---
+<BaseLayout title="Tassonomia | Admin test" noindex={true}>
+  <section class="section">
+    <div class="section-heading">
+      <span class="eyebrow">Admin test</span>
+      <h1>Tassonomia servizi</h1>
+      <p>Servizi usati per quanto-costa, funnel preventivo e intake pratica.</p>
+    </div>
+    <AdminTestNav current="tassonomia" />
+    <div class="list">
+      {services.map((service) => (
+        <article class="card admin-request">
+          <div class="admin-request__head">
+            <div>
+              <h2>{service.plain_language_name || service.name}</h2>
+              <p>{service.category || 'Senza categoria'} · slug <code>{service.slug}</code></p>
+            </div>
+            <a class="btn secondary" href={`/quanto-costa/${service.slug}`}>Pagina pubblica</a>
+          </div>
+          <div class="summary-grid">
+            <div><span>Prezzo medio</span><strong>{euro(service.price_avg_cents)}</strong></div>
+            <div><span>Complessità</span><strong>{service.complexity || '—'}</strong></div>
+            <div><span>Documenti in tassonomia</span><strong>{service.docs_count}</strong></div>
+          </div>
+        </article>
+      ))}
+    </div>
+  </section>
+</BaseLayout>

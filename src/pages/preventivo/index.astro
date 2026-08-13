@@ -8,6 +8,7 @@ import {
   getPropertiesByIdsForEmail,
   listShareableClientProperties,
 } from '../../lib/properties';
+import { getServiceIntake, intakeFromSearchParams } from '../../lib/service-intake';
 
 const params = Astro.url.searchParams;
 const step = Math.min(4, Math.max(1, Number(params.get('step') || '1') || 1));
@@ -43,6 +44,8 @@ const [services, service, selectedNotaries, candidates, shareableProperties, sel
 ]);
 
 const serviceName = service?.plain_language_name || service?.name || '';
+const intake = service ? getServiceIntake(service) : null;
+const intakeValues = intake ? intakeFromSearchParams(params, intake.fields) : {};
 const locationLabel = comune ? titleCase(comune) : '';
 const steps = [
   { n: 1, label: 'Servizio' },
@@ -50,6 +53,11 @@ const steps = [
   { n: 3, label: 'Notai' },
   { n: 4, label: 'Riepilogo' },
 ];
+const servicesByCategory = services.reduce<Record<string, typeof services>>((acc, item) => {
+  const key = item.category || 'Altri servizi';
+  (acc[key] ||= []).push(item);
+  return acc;
+}, {});
 
 const candidateMap = new Map<string, (typeof candidates)[number]>();
 for (const notary of [...selectedNotaries, ...candidates]) {
@@ -73,6 +81,9 @@ function hiddenFields(includeNotaries = true, includeProperties = true) {
   ];
   for (const [key, value] of scalars) {
     if (value) pairs.push([key, value]);
+  }
+  for (const [key, value] of Object.entries(intakeValues)) {
+    if (value) pairs.push([`intake_${key}`, value]);
   }
   if (includeNotaries) {
     for (const id of selectedIds) pairs.push(['notary_ids', id]);
@@ -115,26 +126,47 @@ const canGoStep4 = Boolean(canGoStep3 && selectedNotaries.length > 0 && selected
 
   <section class="section funnel-section">
     {step === 1 && (
-      <form class="card funnel-card" method="get" action="/preventivo">
-        <input type="hidden" name="step" value="2" />
-        <h2>1. Quale pratica ti serve?</h2>
-        <p>Parti dal servizio: così la richiesta arriva già inquadrata e confrontabile.</p>
-        <label>
-          Servizio notarile
-          <select name="servizio" required>
-            <option value="">Scegli un servizio</option>
-            {services.map((item) => (
-              <option value={item.slug} selected={item.slug === serviceSlug}>
-                {item.plain_language_name || item.name}
-              </option>
+      <div class="funnel-stack">
+        <form class="card funnel-card" method="get" action="/preventivo">
+          <input type="hidden" name="step" value="2" />
+          <h2>1. Quale prestazione ti serve?</h2>
+          <p>Scegli la pratica: nel passo successivo ti chiediamo i dettagli utili a un preventivo confrontabile, come su Veterinari.org ma tipizzati per atto notarile.</p>
+          <label>
+            Servizio notarile
+            <select name="servizio" required>
+              <option value="">Scegli un servizio</option>
+              {services.map((item) => (
+                <option value={item.slug} selected={item.slug === serviceSlug}>
+                  {item.plain_language_name || item.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          {params.get('notary') && <input type="hidden" name="notary" value={params.get('notary') || ''} />}
+          <div class="funnel-actions">
+            <button class="btn blue" type="submit">Continua con i dettagli pratica</button>
+          </div>
+        </form>
+        <div class="card funnel-card">
+          <h3>Prestazioni più chiare da descrivere</h3>
+          <div class="service-pick-groups">
+            {Object.entries(servicesByCategory).slice(0, 6).map(([category, items]) => (
+              <div>
+                <strong>{category}</strong>
+                <div class="service-pick-grid">
+                  {items.slice(0, 4).map((item) => (
+                    <a class="service-pick" href={`/preventivo?step=2&servizio=${encodeURIComponent(item.slug)}${params.get('notary') ? `&notary=${encodeURIComponent(params.get('notary') || '')}` : ''}`}>
+                      <span>{item.plain_language_name || item.name}</span>
+                      <em>{item.user_intent || 'Preventivo guidato con dettagli pratica'}</em>
+                      <small>{euro(item.price_avg_cents)} · complessità {item.complexity || 'media'}</small>
+                    </a>
+                  ))}
+                </div>
+              </div>
             ))}
-          </select>
-        </label>
-        {params.get('notary') && <input type="hidden" name="notary" value={params.get('notary') || ''} />}
-        <div class="funnel-actions">
-          <button class="btn blue" type="submit">Continua</button>
+          </div>
         </div>
-      </form>
+      </div>
     )}
 
     {step === 2 && (
@@ -142,29 +174,34 @@ const canGoStep4 = Boolean(canGoStep3 && selectedNotaries.length > 0 && selected
         <input type="hidden" name="step" value="3" />
         <input type="hidden" name="servizio" value={serviceSlug} />
         {selectedIds.map((id) => <input type="hidden" name="notary_ids" value={id} />)}
-        <h2>2. Dati della pratica e località</h2>
+        <h2>2. Descrivi bene la prestazione</h2>
         {!canGoStep2 && <div class="error">Seleziona prima un servizio valido.</div>}
-        {service && (
-          <div class="funnel-context">
-            <span><strong>{serviceName}</strong></span>
-            <span>{euro(service.price_avg_cents)} media indicativa</span>
+        {service && intake && (
+          <div class="service-brief">
+            <div class="funnel-context">
+              <span><strong>{serviceName}</strong></span>
+              <span>{euro(service.price_avg_cents)} media indicativa</span>
+              <span>Profilo intake: {intake.profile}</span>
+            </div>
+            <p>{intake.intro}</p>
+            <div class="doc-hints">
+              <strong>Documenti utili da preparare</strong>
+              <ul class="check-list">
+                {intake.documentHints.map((doc) => <li>{doc}</li>)}
+              </ul>
+            </div>
+            <p class="helper-text">
+              Guida completa:
+              <a href={`/quanto-costa/${service.slug}`}>quanto costa {serviceName.toLowerCase()}</a>
+            </p>
           </div>
         )}
+        <h3>Contatti e località</h3>
         <div class="funnel-grid">
           <label>Comune della pratica <input required name="comune" value={comune} placeholder="Es. Milano" /></label>
           <label>Email obbligatoria <input required type="email" name="email" value={email} placeholder="nome@email.it" /></label>
           <label>Nome <input name="name" value={name} placeholder="Facoltativo" /></label>
           <label>Telefono <input name="phone" value={phone} placeholder="Facoltativo" /></label>
-          <label>
-            Urgenza
-            <select name="urgency">
-              <option value="">Non indicata</option>
-              <option value="normale" selected={urgency === 'normale'}>Normale</option>
-              <option value="entro_7_giorni" selected={urgency === 'entro_7_giorni'}>Entro 7 giorni</option>
-              <option value="urgente" selected={urgency === 'urgente'}>Urgente</option>
-            </select>
-          </label>
-          <label>Valore indicativo (se rilevante) <input name="property_value" value={propertyValue} placeholder="Es. 250000" /></label>
           <label>Parti coinvolte <input name="parties" value={parties} placeholder="Es. 2 parti, acquirente e venditore" /></label>
           <label>
             Documenti già disponibili
@@ -176,7 +213,43 @@ const canGoStep4 = Boolean(canGoStep3 && selectedNotaries.length > 0 && selected
             </select>
           </label>
         </div>
-        <label>Descrivi la pratica <textarea name="message" placeholder="Es. acquisto prima casa, mutuo già deliberato, tempi desiderati...">{message}</textarea></label>
+
+        {intake && (
+          <>
+            <h3>{intake.title}</h3>
+            <div class="funnel-grid">
+              {intake.fields.map((field) => (
+                <label class={field.type === 'textarea' ? 'full-span' : ''}>
+                  {field.label}
+                  {field.type === 'select' ? (
+                    <select name={`intake_${field.name}`} required={field.required}>
+                      {(field.options || []).map((option) => (
+                        <option value={option.value} selected={(intakeValues[field.name] || '') === option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : field.type === 'textarea' ? (
+                    <textarea name={`intake_${field.name}`} placeholder={field.placeholder || ''}>{intakeValues[field.name] || ''}</textarea>
+                  ) : (
+                    <input
+                      name={`intake_${field.name}`}
+                      type={field.type === 'number' ? 'number' : 'text'}
+                      value={intakeValues[field.name] || ''}
+                      placeholder={field.placeholder || ''}
+                      required={field.required}
+                    />
+                  )}
+                  {field.help && <small class="helper-text">{field.help}</small>}
+                </label>
+              ))}
+            </div>
+          </>
+        )}
+
+        <label>Note libere / dettagli aggiuntivi <textarea name="message" placeholder="Aggiungi elementi non coperti dai campi sopra...">{message}</textarea></label>
+        <input type="hidden" name="urgency" value={urgency || intakeValues.timing_preference || ''} />
+        <input type="hidden" name="property_value" value={propertyValue || intakeValues.deal_value || intakeValues.loan_amount || ''} />
 
         <div class="property-attach">
           <h3>Immobili del fascicolo da condividere</h3>
@@ -288,7 +361,20 @@ const canGoStep4 = Boolean(canGoStep3 && selectedNotaries.length > 0 && selected
             <div><span>Parti</span><strong>{parties || '—'}</strong></div>
             <div><span>Documenti</span><strong>{documentsReady || '—'}</strong></div>
           </div>
-          {message && <p class="summary-message"><strong>Dettagli:</strong> {message}</p>}
+          {message && <p class="summary-message"><strong>Note:</strong> {message}</p>}
+          {intake && Object.keys(intakeValues).length > 0 && (
+            <>
+              <h3>Dettagli prestazione ({intake.profile})</h3>
+              <div class="summary-grid">
+                {intake.fields.filter((field) => intakeValues[field.name]).map((field) => (
+                  <div>
+                    <span>{field.label}</span>
+                    <strong>{intakeValues[field.name]}</strong>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
           <h3>Immobili allegati ({selectedProperties.length})</h3>
           {selectedProperties.length ? (
             <ul class="summary-notaries">
@@ -322,10 +408,13 @@ const canGoStep4 = Boolean(canGoStep3 && selectedNotaries.length > 0 && selected
             <input type="hidden" name="name" value={name} />
             <input type="hidden" name="phone" value={phone} />
             <input type="hidden" name="message" value={message} />
-            <input type="hidden" name="urgency" value={urgency} />
-            <input type="hidden" name="property_value" value={propertyValue} />
+            <input type="hidden" name="urgency" value={urgency || intakeValues.timing_preference || ''} />
+            <input type="hidden" name="property_value" value={propertyValue || intakeValues.deal_value || intakeValues.loan_amount || ''} />
             <input type="hidden" name="parties" value={parties} />
             <input type="hidden" name="documents_ready" value={documentsReady} />
+            {Object.entries(intakeValues).map(([key, value]) => (
+              <input type="hidden" name={`intake_${key}`} value={value} />
+            ))}
             {selectedNotaries.map((notary) => <input type="hidden" name="notary_ids" value={notary.id} />)}
             {selectedProperties.map((property) => <input type="hidden" name="property_ids" value={property.id} />)}
             <p>Conferma per salvare la richiesta nel database. L’invio email ai notai arriverà nel passo successivo.</p>

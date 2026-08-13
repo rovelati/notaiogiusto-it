@@ -1,0 +1,46 @@
+---
+import AdminTestNav from '../../components/AdminTestNav.astro';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { isAdminAuthenticated } from '../../lib/admin';
+import { getAdminOverview } from '../../lib/admin-data';
+
+if (!isAdminAuthenticated(Astro.cookies)) {
+  return Astro.redirect('/admin/login?next=/admin-test');
+}
+
+const stats = await getAdminOverview();
+const cards = [
+  { label: 'Notai pubblicati', value: stats.notaries },
+  { label: 'Con email', value: stats.with_email },
+  { label: 'Con telefono', value: stats.with_phone },
+  { label: 'Con sito', value: stats.with_website },
+  { label: 'Con coordinate', value: stats.with_geo },
+  { label: 'Fonte Notariato', value: stats.official },
+  { label: 'Servizi tassonomia', value: stats.services },
+  { label: 'Preventivi totali', value: stats.quotes },
+  { label: 'Preventivi 7 giorni', value: stats.quotes_7d },
+  { label: 'Claim in attesa', value: stats.claims_pending },
+  { label: 'Clienti (email uniche)', value: stats.client_emails },
+  { label: 'Immobili fascicolo', value: stats.properties },
+  { label: 'Enrichment records', value: stats.enrichments },
+  { label: 'Link notaio↔servizio', value: stats.notary_services_links },
+];
+---
+<BaseLayout title="Admin test | NotaioGiusto.it" noindex={true}>
+  <section class="section">
+    <div class="section-heading">
+      <span class="eyebrow">Admin test</span>
+      <h1>Situazione operativa</h1>
+      <p>Vista sintetica su arricchimenti, preventivi, clienti e claim — stile console ops di Veterinari.org.</p>
+    </div>
+    <AdminTestNav current="overview" />
+    <div class="admin-stats-grid">
+      {cards.map((card) => (
+        <div class="stat">
+          <strong>{Number(card.value).toLocaleString('it-IT')}</strong>
+          <span>{card.label}</span>
+        </div>
+      ))}
+    </div>
+  </section>
+</BaseLayout>
