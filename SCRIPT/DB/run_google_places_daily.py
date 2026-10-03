@@ -223,8 +223,8 @@ def send_email(to_email: str, subject: str, text: str, html_body: str) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--limit", type=int, default=2)
-    parser.add_argument("--max-cost-usd", type=float, default=0.25)
+    parser.add_argument("--limit", type=int, default=5)
+    parser.add_argument("--max-cost-usd", type=float, default=0.65)
     parser.add_argument("--email-to", default="romolo.velati@gmail.com")
     parser.add_argument("--test-email", action="store_true")
     return parser.parse_args()
