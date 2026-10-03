@@ -1,0 +1,11 @@
+---
+import { isAdminAuthenticated } from '../lib/admin';
+
+export const prerender = false;
+
+/** Alias come veterinari.org /adminconsole → /admin-test */
+if (isAdminAuthenticated(Astro.cookies)) {
+  return Astro.redirect('/admin-test');
+}
+return Astro.redirect('/admin/login?next=/admin-test');
+---

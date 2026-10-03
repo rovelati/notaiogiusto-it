@@ -1,0 +1,33 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { siteConfig } from '../lib/site';
+
+const title = `Credits | ${siteConfig.name}`;
+const description = `Credits di ${siteConfig.name}: progetto, fonti pubbliche e strumenti che supportano le schede notarili.`;
+const directories = [
+  { name: 'Consiglio Nazionale del Notariato', url: 'https://www.notariato.it/' },
+  { name: 'Ricerca notai Notariato.it', url: 'https://www.notariato.it/trova-notaio/' },
+  { name: 'OpenStreetMap / Nominatim', url: 'https://www.openstreetmap.org/' },
+];
+---
+<BaseLayout title={title} description={description} canonicalPath="/credits">
+  <section class="section legal-page">
+    <article class="card legal-card">
+      <h1>Credits</h1>
+      <p class="lead">
+        {siteConfig.name} è una piattaforma dedicata a chi cerca notai in Italia, con informazioni organizzate
+        per località, pratiche e percorsi di preventivo.
+      </p>
+      <div class="legal-prose">
+        <h2>Fonti e strumenti utili</h2>
+        <ul class="credits-list">
+          {directories.map((item) => (
+            <li>
+              <a href={item.url} target="_blank" rel="nofollow noopener noreferrer">{item.name}</a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </article>
+  </section>
+</BaseLayout>

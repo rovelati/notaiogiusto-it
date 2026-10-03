@@ -68,15 +68,21 @@ python3 enrich_virgilio_notai.py \
 
 ## Batch Background
 
+Preferito rispetto a PagineGialle (spesso bloccato da AWS WAF).
+
 ```bash
 cd /var/www/notaiogiusto-it/SCRIPT/DB
-LIMIT=50 CANDIDATE_LIMIT=10 MIN_DELAY=6 MAX_DELAY=14 ./run_virgilio_background.sh
+# Milano (default)
+LIMIT=80 COMUNE=Milano CANDIDATE_LIMIT=25 ./run_virgilio_background.sh
+
+# altro comune
+LIMIT=40 COMUNE=Roma ./run_virgilio_background.sh
 ```
 
 Monitor:
 
 ```bash
-tail -f logs/virgilio_batch_YYYYMMDD_HHMMSS.log
+tail -f "$(cat state/virgilio_batch.logpath)"
 sudo -u postgres psql -d veterinari_org -c "select count(*) from notai.notary_enrichments where source='virgilio';"
 sudo -u postgres psql -d veterinari_org -c "select count(*) from notai.notary_services where source='virgilio';"
 ```

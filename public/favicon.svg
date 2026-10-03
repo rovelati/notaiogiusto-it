@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="NotaioGiusto">
+  <defs>
+    <linearGradient id="ngBg" x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F2746"/>
+      <stop offset="1" stop-color="#245A93"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#ngBg)"/>
+  <circle cx="32" cy="31" r="22" fill="none" stroke="#FFFFFF" stroke-opacity="0.28" stroke-width="1.75"/>
+  <circle cx="32" cy="31" r="18.5" fill="none" stroke="#FFFFFF" stroke-opacity="0.12" stroke-width="1"/>
+  <path
+    fill="#FFFFFF"
+    d="M19.2 44.2V18.6h7.1c.7 0 1.2.2 1.6.7L38.4 34.8V18.6h6.4v25.6h-7.1c-.7 0-1.2-.2-1.6-.7L25.6 28.2v16h-6.4z"
+  />
+  <rect x="20" y="48.2" width="24" height="2.6" rx="1.3" fill="#B88931"/>
+</svg>

@@ -9,7 +9,10 @@ export type IntakeField = {
 };
 
 export type ServiceIntake = {
+  /** Chiave tecnica interna (admin / API). */
   profile: string;
+  /** Etichetta chiara per l’utente. */
+  profileLabel: string;
   title: string;
   intro: string;
   fields: IntakeField[];
@@ -41,6 +44,21 @@ export function resolveIntakeProfile(service: ServiceLike) {
   return 'generico';
 }
 
+/** Etichetta utente: niente jargon tipo "intake". */
+export function intakeProfileLabel(profile: string) {
+  const labels: Record<string, string> = {
+    acquisto: 'Compravendita immobiliare',
+    mutuo: 'Mutuo e ipoteca',
+    successione: 'Successione e eredità',
+    donazione: 'Donazione',
+    societa: 'Società e imprese',
+    procura: 'Procure e deleghe',
+    autentica: 'Autentiche e documenti',
+    generico: 'Pratica notarile',
+  };
+  return labels[profile] || labels.generico;
+}
+
 export function getServiceIntake(service: ServiceLike): ServiceIntake {
   const profile = resolveIntakeProfile(service);
   const serviceName = service.plain_language_name || service.name || 'pratica notarile';
@@ -63,10 +81,10 @@ export function getServiceIntake(service: ServiceLike): ServiceIntake {
     },
   ];
 
-  const byProfile: Record<string, ServiceIntake> = {
+  const byProfile: Record<string, Omit<ServiceIntake, 'profileLabel'>> = {
     acquisto: {
       profile: 'acquisto',
-      title: `Dettagli per ${serviceName}`,
+      title: `Cosa serve sapere per ${serviceName.toLowerCase()}`,
       intro:
         service.user_intent ||
         'Per un preventivo confrontabile indica tipo immobile, valore, mutuo e se è prima casa. Questi dati aiutano lo studio a distinguere compenso, imposte e verifiche.',
@@ -135,7 +153,7 @@ export function getServiceIntake(service: ServiceLike): ServiceIntake {
     },
     mutuo: {
       profile: 'mutuo',
-      title: `Dettagli per ${serviceName}`,
+      title: `Cosa serve sapere per ${serviceName.toLowerCase()}`,
       intro: 'Per il mutuo servono importo, banca e se l’atto è contestuale all’acquisto o autonomo.',
       documentHints: docs.length ? docs : ['Delibera / bozza contratto banca', 'Dati immobile se ipotecato', 'Documenti identità'],
       fields: [
@@ -157,11 +175,21 @@ export function getServiceIntake(service: ServiceLike): ServiceIntake {
     },
     successione: {
       profile: 'successione',
-      title: `Dettagli per ${serviceName}`,
-      intro: 'Indica eredità, immobili coinvolti e se serve solo dichiarazione o anche atti successivi.',
+      title: `Cosa serve sapere per ${serviceName.toLowerCase()}`,
+      intro:
+        service.user_intent ||
+        'Indica se c’è un testamento, quanti eredi, se ci sono immobili e se ti serve solo la dichiarazione di successione o anche atti successivi (accettazione, inventari, divisione).',
       documentHints: docs.length
         ? docs
-        : ['Certificato di morte', 'Stato di famiglia / eredi', 'Visure immobili se noti', 'Eventuale testamento'],
+        : [
+            'Certificato di morte del defunto',
+            'Atto di notorietà o dichiarazione sostitutiva',
+            'Certificato di nascita dell’erede',
+            'Codice fiscale del defunto e degli eredi',
+            'Visure catastali e planimetrie degli immobili',
+            'Elenco dei beni mobili (conti, titoli, ecc.)',
+            'Testamento, se presente',
+          ],
       fields: [
         {
           name: 'heirs_count',
@@ -212,7 +240,7 @@ export function getServiceIntake(service: ServiceLike): ServiceIntake {
     },
     donazione: {
       profile: 'donazione',
-      title: `Dettagli per ${serviceName}`,
+      title: `Cosa serve sapere per ${serviceName.toLowerCase()}`,
       intro: 'Per la donazione servono bene donato, rapporto tra le parti e valore indicativo.',
       documentHints: docs.length ? docs : ['Documenti identità', 'Titolo di provenienza', 'Visura catastale se immobile'],
       fields: [
@@ -240,7 +268,7 @@ export function getServiceIntake(service: ServiceLike): ServiceIntake {
     },
     societa: {
       profile: 'societa',
-      title: `Dettagli per ${serviceName}`,
+      title: `Cosa serve sapere per ${serviceName.toLowerCase()}`,
       intro: 'Descrivi forma societaria, oggetto e se hai già bozza di statuto o soci definiti.',
       documentHints: docs.length ? docs : ['Documenti identità soci', 'Bozza atto / statuto', 'Codici ATECO / oggetto sociale'],
       fields: [
@@ -273,7 +301,7 @@ export function getServiceIntake(service: ServiceLike): ServiceIntake {
     },
     procura: {
       profile: 'procura',
-      title: `Dettagli per ${serviceName}`,
+      title: `Cosa serve sapere per ${serviceName.toLowerCase()}`,
       intro: 'Specifica se è procura speciale o generale e per quale atto serve.',
       documentHints: docs.length ? docs : ['Documento identità', 'Dati del procuratore', 'Atto per cui serve la procura'],
       fields: [
@@ -303,7 +331,7 @@ export function getServiceIntake(service: ServiceLike): ServiceIntake {
     },
     autentica: {
       profile: 'autentica',
-      title: `Dettagli per ${serviceName}`,
+      title: `Cosa serve sapere per ${serviceName.toLowerCase()}`,
       intro: 'Per autentiche e copie indica numero documenti/pagine e urgenza: il costo cambia spesso su questi elementi.',
       documentHints: docs.length
         ? docs
@@ -332,7 +360,7 @@ export function getServiceIntake(service: ServiceLike): ServiceIntake {
     },
     generico: {
       profile: 'generico',
-      title: `Dettagli per ${serviceName}`,
+      title: `Cosa serve sapere per ${serviceName.toLowerCase()}`,
       intro:
         service.user_intent ||
         'Descrivi la pratica in modo concreto: oggetto, valore se rilevante, parti e tempistiche. Più dettagli = preventivo più confrontabile.',
@@ -355,7 +383,11 @@ export function getServiceIntake(service: ServiceLike): ServiceIntake {
     },
   };
 
-  return byProfile[profile];
+  const selected = byProfile[profile] || byProfile.generico;
+  return {
+    ...selected,
+    profileLabel: intakeProfileLabel(selected.profile),
+  };
 }
 
 export function collectIntakeValues(form: FormData, fields: IntakeField[]) {

@@ -1,0 +1,308 @@
+---
+import ListingPagination from './ListingPagination.astro';
+import NotaiListingMap from './NotaiListingMap.astro';
+import { titleCase } from '../lib/format';
+import { SEARCH_RADIUS_STEPS, formatDistanceKm } from '../lib/geo';
+import { MAX_QUOTE_NOTARIES } from '../lib/notai';
+
+type ListedNotary = {
+  id: string;
+  source_slug: string;
+  full_name: string;
+  comune?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  is_official_notariato?: boolean;
+  lat?: number | null;
+  lng?: number | null;
+  exactCity?: boolean;
+  distanceKm?: number | null;
+  rating_avg?: number | null;
+  review_count?: number | null;
+  services_count?: number | null;
+};
+
+type SeoLink = { label: string; href: string; description?: string };
+
+const {
+  notaries = [],
+  locationLabel = '',
+  exactCityCount = 0,
+  scopeNote = '',
+  serviceName = '',
+  serviceSlug = '',
+  preventivoBase = '/preventivo?step=1',
+  mapPoints = [],
+  searchOrigin = null,
+  radiusKm = null,
+  radiusOptions = [...SEARCH_RADIUS_STEPS],
+  radiusBasePath = '',
+  nearbyCityLinks = [],
+  serviceSeoLinks = [],
+  page = 1,
+  totalPages = 1,
+  total = 0,
+  pageSize = 10,
+  paginationBasePath = '',
+  nearMeActive = false,
+  serviceIntent = null,
+} = Astro.props as {
+  notaries?: ListedNotary[];
+  locationLabel?: string;
+  exactCityCount?: number;
+  withCoordsCount?: number;
+  scopeNote?: string;
+  serviceName?: string;
+  serviceSlug?: string;
+  preventivoBase?: string;
+  mapPoints?: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    address?: string | null;
+    lat: number;
+    lng: number;
+    rank: number;
+    exactCity?: boolean;
+  }>;
+  searchOrigin?: { lat: number; lng: number; label?: string } | null;
+  radiusKm?: number | null;
+  radiusOptions?: number[];
+  radiusBasePath?: string;
+  nearbyCityLinks?: SeoLink[];
+  serviceSeoLinks?: SeoLink[];
+  page?: number;
+  totalPages?: number;
+  total?: number;
+  pageSize?: number;
+  paginationBasePath?: string;
+  nearMeActive?: boolean;
+  serviceIntent?: {
+    title: string;
+    body: string;
+    ctaHref: string;
+    ctaLabel: string;
+    guideHref?: string;
+  } | null;
+};
+
+function radiusHref(km: number) {
+  if (!radiusBasePath) return `#`;
+  const url = new URL(radiusBasePath, 'https://www.notaiogiusto.it');
+  url.searchParams.set('raggio', String(km));
+  url.searchParams.delete('page');
+  return `${url.pathname}${url.search}`;
+}
+
+const expanded = Boolean(locationLabel && exactCityCount > 0 && exactCityCount < total);
+const resultSummary = nearMeActive
+  ? `${total} studi vicino a te`
+  : locationLabel
+    ? expanded
+      ? `${total} studi vicino a ${locationLabel}`
+      : `${total} studi a ${locationLabel}`
+    : `${total} ${total === 1 ? 'risultato' : 'risultati'}`;
+const pageSummary =
+  totalPages > 1 ? `Pagina ${page} di ${totalPages}` : total > pageSize ? `I ${pageSize} più rilevanti` : '';
+const startRank = (page - 1) * pageSize;
+const showRadiusControls = Boolean(radiusBasePath);
+const stickyIds = notaries.slice(0, MAX_QUOTE_NOTARIES).map((notary) => notary.id);
+const stickyCtaHref = (() => {
+  const base = serviceIntent?.ctaHref || preventivoBase;
+  if (!stickyIds.length) return base;
+  try {
+    const url = new URL(base, 'https://www.notaiogiusto.it');
+    url.searchParams.set('notary', stickyIds.join(','));
+    if (!url.searchParams.get('step') || url.searchParams.get('step') === '1') {
+      if (serviceSlug || url.searchParams.get('servizio')) url.searchParams.set('step', '2');
+    }
+    return `${url.pathname}${url.search}`;
+  } catch {
+    return base;
+  }
+})();
+const showStickyCta = notaries.length > 0 && Boolean(stickyCtaHref);
+const stickyLabel = serviceName
+  ? locationLabel
+    ? `${serviceName} · ${locationLabel}`
+    : serviceName
+  : locationLabel
+    ? `Notai a ${locationLabel}`
+    : 'Preventivo notarile';
+const officialCount = notaries.filter((n) => n.is_official_notariato).length;
+const showOfficialSourceNote = officialCount > 0;
+---
+<section class="section section--listing">
+  {serviceIntent && (
+    <aside class="service-intent" aria-label="Passo successivo">
+      <div class="service-intent__copy">
+        <h2>{serviceIntent.title}</h2>
+        <p>{serviceIntent.body}</p>
+      </div>
+      <div class="service-intent__actions">
+        <a class="btn blue" rel="nofollow" href={serviceIntent.ctaHref}>{serviceIntent.ctaLabel}</a>
+        {serviceIntent.guideHref ? (
+          <a class="btn secondary" href={serviceIntent.guideHref}>Guida alla pratica</a>
+        ) : null}
+      </div>
+    </aside>
+  )}
+
+  <div class="listing-toolbar">
+    <p class="listing-summary">
+      <strong>{resultSummary}</strong>
+      {pageSummary ? <span>· {pageSummary}</span> : null}
+      {radiusKm != null ? <span>· entro {radiusKm} km</span> : null}
+    </p>
+    <div class="listing-filters" aria-label="Filtri ricerca">
+      <button
+        type="button"
+        class={`near-me-btn${nearMeActive ? ' is-active' : ''}`}
+        data-near-me
+        data-near-me-base="/notai"
+      >
+        {nearMeActive ? 'Vicino a te' : 'Vicino a me'}
+      </button>
+      {showRadiusControls &&
+        radiusOptions.map((km) => (
+          <a
+            class={`radius-chip${radiusKm === km ? ' is-active' : ''}`}
+            rel="nofollow"
+            href={radiusHref(km)}
+          >
+            {km} km
+          </a>
+        ))}
+    </div>
+  </div>
+
+  {showOfficialSourceNote && (
+    <p class="listing-source-note">
+      <span class="official-mark" aria-hidden="true">Ufficiale</span>
+      Elenco da Consiglio Nazionale del Notariato
+      {serviceSlug ? (
+        <>
+          {' '}
+          · <a href={`/quanto-costa/${serviceSlug}`}>Guida pratica</a>
+        </>
+      ) : null}
+    </p>
+  )}
+  {!showOfficialSourceNote && serviceSlug ? (
+    <p class="listing-source-note">
+      <a href={`/quanto-costa/${serviceSlug}`}>Guida pratica</a>
+    </p>
+  ) : null}
+  {scopeNote && <p class="helper-text scope-note">{scopeNote}</p>}
+
+  <div class="listing-layout">
+    {/* Mappa prima nel DOM: su mobile compare sopra (come veterinari.org). Su desktop resta a destra via order. */}
+    <NotaiListingMap
+      points={mapPoints}
+      locationLabel={nearMeActive ? 'Vicino a te' : locationLabel}
+      searchOrigin={searchOrigin}
+    />
+
+    <div class="list result-list">
+      {notaries.map((notary, index) => {
+        const distanceLabel =
+          notary.distanceKm != null && (nearMeActive || !notary.exactCity)
+            ? formatDistanceKm(notary.distanceKm)
+            : null;
+        const reviews = Number(notary.review_count || 0);
+        const rating = Number(notary.rating_avg || 0);
+        return (
+          <article class="card notary-result-row" id={`notary-${notary.id}`}>
+            <div>
+              <div class="result-title-row">
+                <span class="result-rank">{startRank + index + 1}</span>
+                <h3>{titleCase(notary.full_name)}</h3>
+                {notary.is_official_notariato ? (
+                  <span
+                    class="official-mark"
+                    title="Fonte ufficiale Consiglio Nazionale del Notariato"
+                  >
+                    Ufficiale
+                  </span>
+                ) : null}
+              </div>
+              <address>
+                {notary.address || 'Indirizzo non disponibile'}
+                {notary.comune && ` · ${titleCase(notary.comune)}`}
+              </address>
+              {(distanceLabel || (reviews > 0 && rating > 0)) && (
+                <div class="result-meta">
+                  {distanceLabel ? <span>~{distanceLabel}</span> : null}
+                  {reviews > 0 && rating > 0 ? (
+                    <span>
+                      {rating.toFixed(1).replace('.', ',')} · {reviews} recensioni
+                    </span>
+                  ) : null}
+                </div>
+              )}
+            </div>
+            <div class="actions">
+              {notary.phone && <a class="btn navy" href={`tel:${notary.phone}`}>Chiama</a>}
+              <a class="btn blue" rel="nofollow" href={`${preventivoBase}&notary=${notary.id}`}>Preventivo</a>
+              <a class="btn secondary" href={`/notai/${notary.source_slug}`}>Scheda</a>
+            </div>
+          </article>
+        );
+      })}
+      {!notaries.length && (
+        <div class="notice">
+          Nessun notaio trovato in questo raggio.
+          {locationLabel ? ' Prova ad allargare il raggio o un comune vicino.' : ' Prova ad aggiungere una città oppure usa “Vicino a me”.'}
+        </div>
+      )}
+      <ListingPagination
+        page={page}
+        totalPages={totalPages}
+        total={total}
+        pageSize={pageSize}
+        basePath={paginationBasePath || radiusBasePath || '/notai'}
+      />
+    </div>
+  </div>
+
+  {(nearbyCityLinks.length > 0 || serviceSeoLinks.length > 0) && page <= 1 && (
+    <section class="listing-seo" aria-label="Ricerche correlate">
+      {nearbyCityLinks.length > 0 && (
+        <div class="listing-seo__block">
+          <h2>Notai nelle province vicine{locationLabel ? ` a ${locationLabel}` : ''}</h2>
+          <p>Se ti serve uno studio fuori città, parti dai capoluoghi più vicini.</p>
+          <div class="city-link-row">
+            {nearbyCityLinks.map((link) => (
+              <a href={link.href}>{link.label}</a>
+            ))}
+          </div>
+        </div>
+      )}
+      {serviceSeoLinks.length > 0 && (
+        <div class="listing-seo__block">
+          <h2>Pratiche richieste{locationLabel ? ` a ${locationLabel}` : ''}</h2>
+          <p>Pagine locali con costi indicativi e notai da contattare per il preventivo.</p>
+          <div class="city-link-row">
+            {serviceSeoLinks.map((link) => (
+              <a href={link.href}>{link.label}</a>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
+  )}
+</section>
+
+{showStickyCta && (
+  <div class="listing-sticky-bar" role="region" aria-label="Richiedi preventivo">
+    <div class="listing-sticky-bar__inner">
+      <p class="listing-sticky-bar__copy">
+        <strong>{stickyLabel}</strong>
+        <span>{total} {total === 1 ? 'notaio in zona' : 'notai in zona'}</span>
+      </p>
+      <a class="btn blue listing-sticky-bar__cta" rel="nofollow" href={stickyCtaHref}>
+        Richiedi preventivo
+      </a>
+    </div>
+  </div>
+)}

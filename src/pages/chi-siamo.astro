@@ -1,0 +1,36 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { siteConfig } from '../lib/site';
+
+const title = `Chi siamo | ${siteConfig.name}`;
+const description = `${siteConfig.name} aiuta a trovare notai, capire i costi delle pratiche e richiedere preventivi notarili qualificati.`;
+---
+<BaseLayout title={title} description={description} canonicalPath="/chi-siamo">
+  <section class="section legal-page">
+    <article class="card legal-card">
+      <h1>Chi siamo</h1>
+      <div class="legal-prose">
+        <p>
+          <strong>{siteConfig.name}</strong> è un portale indipendente dedicato alla ricerca di studi notarili
+          in Italia, con informazioni su sede, contatti, pratiche e costi indicativi.
+        </p>
+        <h2>La nostra missione</h2>
+        <p>
+          Rendere più semplice trovare il notaio giusto e capire quanto può costare una pratica,
+          con percorsi chiari verso la richiesta di preventivo.
+        </p>
+        <h2>Come lavoriamo</h2>
+        <p>
+          Organizziamo dati pubblici (a partire dalle fonti ufficiali del Notariato e da arricchimenti pubblici)
+          in schede e ricerche locali. Gli studi possono reclamare e aggiornare il proprio profilo.
+        </p>
+        <h2>Perché usarci</h2>
+        <ul>
+          <li>Ricerca gratuita di notai per nome o città.</li>
+          <li>Guide ai costi delle pratiche notarili più richieste.</li>
+          <li>Funnel di preventivo strutturato verso uno o più studi.</li>
+        </ul>
+      </div>
+    </article>
+  </section>
+</BaseLayout>

@@ -1,23 +1,28 @@
 ---
-import AdminTestNav from '../../components/AdminTestNav.astro';
+import AdminShell from '../../components/AdminShell.astro';
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import { isAdminAuthenticated } from '../../lib/admin';
+import { getAdminEmail, isAdminAuthenticated } from '../../lib/admin';
 import { listAdminClients } from '../../lib/admin-data';
+
+export const prerender = false;
 
 if (!isAdminAuthenticated(Astro.cookies)) {
   return Astro.redirect('/admin/login?next=/admin-test/clienti');
 }
 
+const adminEmail = getAdminEmail(Astro.cookies) || '';
+
 const clients = await listAdminClients(150);
 ---
 <BaseLayout title="Clienti | Admin test" noindex={true}>
-  <section class="section">
+  <AdminShell current="clients" adminEmail={adminEmail}>
+  <div class="admin-page">
     <div class="section-heading">
       <span class="eyebrow">Admin test</span>
       <h1>Clienti</h1>
       <p>Email che hanno inviato almeno una richiesta, con immobili nel fascicolo se presenti.</p>
     </div>
-    <AdminTestNav current="clienti" />
+    
     <div class="list">
       {clients.map((client) => (
         <article class="card admin-request">
@@ -36,5 +41,6 @@ const clients = await listAdminClients(150);
       ))}
       {!clients.length && <div class="notice">Nessun cliente ancora presente.</div>}
     </div>
-  </section>
+  </div>
+  </AdminShell>
 </BaseLayout>

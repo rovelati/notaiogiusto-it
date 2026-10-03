@@ -1,26 +1,232 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import LegalDisclaimer from '../../components/LegalDisclaimer.astro';
 import { euro } from '../../lib/format';
-import { getTopServices } from '../../lib/notai';
+import { CAPOLUOGHI, MACRO_CATEGORIES, macroCategory } from '../../lib/locations';
+import { getAllServices, getTopServices, resolveServiceFromQuery } from '../../lib/notai';
 
-const services = await getTopServices(80);
+const searchQuery = (Astro.url.searchParams.get('q') || '').trim();
+const searchLocation = (Astro.url.searchParams.get('comune') || '').trim();
+if (searchQuery) {
+  const matched = await resolveServiceFromQuery(searchQuery);
+  if (matched) {
+    if (searchLocation) {
+      const city = CAPOLUOGHI.find(
+        (item) => item.name.toLowerCase() === searchLocation.toLowerCase(),
+      );
+      if (city) {
+        return Astro.redirect(
+          `/quanto-costa/${toLocationSlug(city.name, city.province)}/${matched.slug}/notai`,
+          302,
+        );
+      }
+      return Astro.redirect(
+        `/notai?servizio=${encodeURIComponent(matched.slug)}&comune=${encodeURIComponent(searchLocation)}`,
+        302,
+      );
+    }
+    return Astro.redirect(`/quanto-costa/${matched.slug}`, 302);
+  }
+}
+const [services, searchableServices] = await Promise.all([
+  getTopServices(120),
+  getAllServices(),
+]);
+const popular = services.slice(0, 6);
+const byMacro = MACRO_CATEGORIES.map((macro) => ({
+  ...macro,
+  items: services.filter((service) => macroCategory(service.category) === macro.name),
+}));
+const counts = Object.fromEntries(byMacro.map((macro) => [macro.slug, macro.items.length]));
+const priceHints = Object.fromEntries(
+  byMacro.map((macro) => {
+    const avgs = macro.items.map((item) => item.price_avg_cents).filter((value): value is number => Boolean(value));
+    const avg = avgs.length ? Math.round(avgs.reduce((a, b) => a + b, 0) / avgs.length) : null;
+    return [macro.slug, avg];
+  }),
+);
+const serviceOptions = searchableServices.map((service) => ({
+  slug: service.slug,
+  name: service.plain_language_name || service.name,
+  category: macroCategory(service.category),
+  avg: service.price_avg_cents,
+  terms: [...new Set((service.search_terms || []).map((term) => term.term))],
+}));
+const serviceOptionsJson = JSON.stringify(serviceOptions).replace(/</g, '\\u003c');
+const cityHints = CAPOLUOGHI.slice(0, 8);
 ---
-<BaseLayout title="Quanto costa il notaio? Servizi, documenti e preventivi">
+<BaseLayout
+  title="Quanto costa il notaio? Prezzi e preventivi notarili"
+  description="Cerca la pratica notarile, scegli la località e arriva a range indicativi, documenti utili e richiesta preventivo. Quattro macro-aree: immobili, famiglia, società, consulenza."
+  canonicalPath="/quanto-costa"
+>
+  <section class="home-hero qc-hero">
+    <div class="home-hero__glow" aria-hidden="true"></div>
+    <div class="home-hero__inner">
+      <div class="home-hero__intro">
+        <nav class="breadcrumbs breadcrumbs--on-dark" aria-label="Breadcrumb">
+          <a href="/">Home</a>
+          <span aria-hidden="true">/</span>
+          <span>Quanto costa</span>
+        </nav>
+        <h1>Quanto costa un atto notarile?</h1>
+        <p class="home-hero__tagline">
+          Cerca la pratica, indica la località e arriva a range indicativi, documenti e preventivo.
+        </p>
+        <LegalDisclaimer variant="inline" />
+        <ol class="qc-steps">
+          <li><strong>1.</strong> Prestazione</li>
+          <li><strong>2.</strong> Località</li>
+          <li><strong>3.</strong> Preventivo</li>
+        </ol>
+      </div>
+
+      <form class="qc-search" id="qc-search-form" action="/quanto-costa" method="get">
+        <script type="application/json" data-service-autocomplete-options set:html={serviceOptionsJson}></script>
+        <div class="qc-search__grid">
+          <div class="qc-search__field service-autocomplete" data-service-autocomplete>
+            <label for="qc-service">Quale pratica cerchi?</label>
+            <input
+              id="qc-service"
+              name="q"
+              type="search"
+              list="qc-services"
+              autocomplete="off"
+              placeholder="Es. acquisto casa, successione, procura..."
+              required
+              data-service-autocomplete-input
+            />
+            <datalist id="qc-services">
+              {serviceOptions.map((service) => (
+                <option value={service.name}></option>
+              ))}
+            </datalist>
+            <em>Ti portiamo alla pagina con costi indicativi, documenti e richiesta preventivo.</em>
+            <div class="service-autocomplete__list" data-service-autocomplete-list hidden></div>
+          </div>
+          <label class="qc-search__field">
+            <span>Dove?</span>
+            <input
+              id="qc-location"
+              name="comune"
+              type="search"
+              list="qc-cities"
+              autocomplete="off"
+              placeholder="Es. Milano, Roma, Torino..."
+            />
+            <datalist id="qc-cities">
+              {cityHints.map((city) => (
+                <option value={`${city.name}`}></option>
+              ))}
+            </datalist>
+            <em>Opzionale: se indichi la città, apriamo i notai locali per quella pratica.</em>
+          </label>
+        </div>
+        <button class="btn navy qc-search__submit" type="submit">Vedi costi e preventivo</button>
+        <p class="qc-search__meta">{services.length} prestazioni in archivio · i costi sono indicativi</p>
+      </form>
+    </div>
+  </section>
+
   <section class="section">
-    <span class="eyebrow">Costi notarili indicativi</span>
-    <h1>Quanto costa il notaio?</h1>
-    <p class="lead">Range iniziali per orientarti. Le imposte e le spese vive dipendono dal caso: il preventivo serve proprio a normalizzare le voci.</p>
+    <div class="section-heading">
+      <h2>Pratiche più richieste</h2>
+      <p>Parti da una prestazione frequente e arriva al dettaglio costi, documenti e notai da contattare.</p>
+    </div>
     <div class="grid">
-      {services.map((service) => (
-        <a class="card" href={`/quanto-costa/${service.slug}`}>
+      {popular.map((service) => (
+        <a class="card qc-popular-card" href={`/quanto-costa/${service.slug}`}>
+          <span class="pill">{macroCategory(service.category)}</span>
           <h3>{service.plain_language_name || service.name}</h3>
           <p>{service.user_intent}</p>
           <div class="price">{euro(service.price_avg_cents)}</div>
           <div class="meta">
-            <span class="pill">{euro(service.price_min_cents)} - {euro(service.price_max_cents)}</span>
+            <span class="pill green">{euro(service.price_min_cents)} - {euro(service.price_max_cents)}</span>
           </div>
         </a>
       ))}
     </div>
   </section>
+
+  <section class="section soft">
+    <div class="section-heading">
+      <h2>Scegli per macro-area</h2>
+      <p>Quattro percorsi chiari, poi il dettaglio della singola prestazione.</p>
+    </div>
+    <div class="grid macro-grid">
+      {MACRO_CATEGORIES.map((macro) => (
+        <a class="card macro-card" href={`/quanto-costa/categoria/${macro.slug}`}>
+          <h3>{macro.name}</h3>
+          <p>{macro.description}</p>
+          <div class="meta">
+            <span class="pill">{counts[macro.slug] || 0} prestazioni</span>
+            {priceHints[macro.slug] && <span class="pill green">media ~ {euro(priceHints[macro.slug])}</span>}
+          </div>
+          <span class="inline-action">Apri area →</span>
+        </a>
+      ))}
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-heading">
+      <h2>Tutte le prestazioni</h2>
+      <p>Elenco completo per area. Apri il dettaglio per FAQ, documenti e preventivo locale.</p>
+    </div>
+    {byMacro.map((macro) => (
+      <div class="qc-group">
+        <div class="qc-group__head">
+          <h3>{macro.name}</h3>
+          <a href={`/quanto-costa/categoria/${macro.slug}`}>Vedi area</a>
+        </div>
+        <div class="qc-table">
+          {macro.items.map((service) => (
+            <a class="qc-table__row" href={`/quanto-costa/${service.slug}`}>
+              <span>
+                <strong>{service.plain_language_name || service.name}</strong>
+                <em>{service.user_intent}</em>
+              </span>
+              <span class="qc-table__price">{euro(service.price_avg_cents)}</span>
+            </a>
+          ))}
+          {!macro.items.length && <div class="notice">Nessuna prestazione in questa area.</div>}
+        </div>
+      </div>
+    ))}
+  </section>
+
+  <script src="/js/service-autocomplete.js" defer></script>
+  <script define:vars={{ serviceOptions, cityHints }}>
+    const form = document.getElementById('qc-search-form');
+    if (form) {
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const serviceInput = document.getElementById('qc-service');
+        const locationInput = document.getElementById('qc-location');
+        const query = String(serviceInput?.value || '').trim().toLowerCase();
+        const location = String(locationInput?.value || '').trim();
+        if (!query) return;
+
+        const match =
+          serviceOptions.find((item) => item.name.toLowerCase() === query) ||
+          serviceOptions.find((item) => item.name.toLowerCase().includes(query) || query.includes(item.name.toLowerCase()));
+
+        if (!match) {
+          window.location.href = `/quanto-costa?q=${encodeURIComponent(query)}`;
+          return;
+        }
+
+        if (location) {
+          const city = cityHints.find((item) => item.name.toLowerCase() === location.toLowerCase());
+          const slug = city
+            ? `${city.name}-${city.province}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+            : location.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+          window.location.href = `/quanto-costa/${slug}/${match.slug}/notai`;
+          return;
+        }
+
+        window.location.href = `/quanto-costa/${match.slug}`;
+      });
+    }
+  </script>
 </BaseLayout>

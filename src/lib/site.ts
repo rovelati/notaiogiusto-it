@@ -4,13 +4,29 @@ export function getSiteUrl() {
 }
 
 export function absoluteUrl(pathname = '/') {
+  if (/^https?:\/\//i.test(pathname)) return pathname;
   const path = pathname.startsWith('/') ? pathname : `/${pathname}`;
   return `${getSiteUrl()}${path}`;
 }
 
 export function shouldNoindexSearch(url: URL) {
-  const uselessKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'fbclid', 'gclid', 'ref', 'page'];
-  const page = Number(url.searchParams.get('page') || '1');
-  if (page > 1) return true;
-  return uselessKeys.some((key) => url.searchParams.has(key));
+  return shouldNoindexListingUrl(url);
 }
+
+/**
+ * Listing pubblici indexabili solo su URL “puliti”.
+ * Qualsiasi query (?page, ?raggio, ?q, utm, …) → noindex,nofollow.
+ */
+export function shouldNoindexListingUrl(url: URL) {
+  if ([...url.searchParams.keys()].length > 0) return true;
+  return false;
+}
+
+export const siteConfig = {
+  name: 'NotaioGiusto.it',
+  legalName: 'NotaioGiusto.it',
+  tagline: 'Notai, costi e preventivi',
+  publicEmail: 'redazione@notaiogiusto.it',
+  url: getSiteUrl(),
+} as const;
+

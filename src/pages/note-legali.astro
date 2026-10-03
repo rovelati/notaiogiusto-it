@@ -1,0 +1,226 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { siteConfig } from '../lib/site';
+
+const title = `Note legali | ${siteConfig.name}`;
+const description = `Note legali di ${siteConfig.name}: conformità normativa, deontologia notarile sui preventivi, tariffe liberalizzate, fonti ufficiali e limiti di responsabilità.`;
+const updated = '14 settembre 2026';
+
+const sources = [
+  {
+    label: 'Principi di deontologia professionale dei notai (CNN)',
+    href: 'https://www.notariato.it/wp-content/uploads/Principi-di-deontologia-professionale-dei-notai-5.pdf',
+    note: 'Preventivo scritto, divieto di procacciamento d’affari, pubblicità informativa',
+  },
+  {
+    label: 'Principi di deontologia (testo in vigore dal 25 maggio 2026)',
+    href: 'https://www.notariato.it/wp-content/uploads/Principi-di-deontologia-professionale-dei-Notai-in-vigore-dal-25-maggio-2026-1-3.pdf',
+    note: 'Aggiornamento CNN con equo compenso e rapporti con clienti “forti”',
+  },
+  {
+    label: 'D.L. 24 gennaio 2012, n. 1 (art. 9) — Normattiva',
+    href: 'https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:decreto.legge:2012-01-24;1',
+    note: 'Liberalizzazione dei compensi professionali e obblighi informativi sul preventivo',
+  },
+  {
+    label: 'Legge 4 agosto 2017, n. 124 (concorrenza) — Normattiva',
+    href: 'https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:legge:2017-08-04;124',
+    note: 'Riforma mercato e concorrenza: preventivo e pattuizione del compenso',
+  },
+  {
+    label: 'Legge 21 aprile 2023, n. 49 (equo compenso) — Normattiva',
+    href: 'https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:legge:2023-04-21;49',
+    note: 'Compenso giusto ed equo nei rapporti con banche, grandi imprese e PA',
+  },
+  {
+    label: 'Acquistare un’abitazione — Consiglio Nazionale del Notariato',
+    href: 'https://www.notariato.it/it/casa/acquistare-unabitazione/',
+    note: 'Imposte di registro, ipotecaria e catastale; prima casa e IVA',
+  },
+  {
+    label: 'Prezzo-valore — guida CNN / associazioni consumatori',
+    href: 'https://www.notariato.it/it/guida/prezzo-valore/',
+    note: 'Base imponibile catastale e trasparenza del prezzo in atto',
+  },
+  {
+    label: 'Agenzia delle Entrate — Imposta di registro e atti',
+    href: 'https://www.agenziaentrate.gov.it/portale/web/guest/schede/fabbricatiterreni/acquisto-di-casa/acquisto-casa-imposta-registro',
+    note: 'Aliquote e adempimenti fiscali sugli atti immobiliari',
+  },
+  {
+    label: 'Tariffa dell’imposta di registro (D.P.R. 131/1986) — Normattiva',
+    href: 'https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:decreto.del.presidente.della.repubblica:1986-04-26;131',
+    note: 'Testo unico registro: base normativa delle imposte sugli atti',
+  },
+  {
+    label: 'Trova il notaio — Notariato.it',
+    href: 'https://www.notariato.it/it/trova-notaio/',
+    note: 'Fonte ufficiale di individuazione degli studi notarili',
+  },
+] as const;
+---
+<BaseLayout title={title} description={description} canonicalPath="/note-legali">
+  <section class="section legal-page">
+    <article class="card legal-card">
+      <h1>Note legali</h1>
+      <p class="legal-updated">Ultimo aggiornamento: {updated}</p>
+      <div class="legal-prose">
+        <h2>1. Natura del servizio</h2>
+        <p>
+          {siteConfig.name} è una piattaforma informativa e di intermediazione tecnica tra cittadini e studi
+          notarili. Pubblica schede pubbliche, range di costo <strong>indicativi</strong> e consente di
+          inoltrare richieste strutturate di preventivo agli studi selezionati dall’utente.
+        </p>
+        <p>
+          I contenuti <strong>non costituiscono</strong> consulenza legale, fiscale o notarile, né un parere
+          professionale, né un’offerta al pubblico di prestazioni notarili. L’unico soggetto abilitato a
+          svolgere attività notarile e a rilasciare il preventivo vincolante della specifica pratica è il
+          notaio (o lo studio) che assume l’incarico.
+        </p>
+
+        <h2>2. Conformità alla normativa e alla deontologia notarile</h2>
+        <p>
+          Il servizio è progettato per rispettare il quadro normativo italiano e i
+          <a
+            href="https://www.notariato.it/wp-content/uploads/Principi-di-deontologia-professionale-dei-notai-5.pdf"
+            target="_blank"
+            rel="noopener noreferrer"
+          >Principi di deontologia professionale dei notai</a>
+          del Consiglio Nazionale del Notariato (CNN), in particolare quanto a:
+        </p>
+        <ul>
+          <li>
+            <strong>Divieto di procacciamento d’affari</strong>: la piattaforma non procura clienti ai notai
+            dietro corrispettivo di segnalazione, non impone la scelta di uno studio e non sostituisce la
+            libera designazione del notaio da parte delle parti.
+          </li>
+          <li>
+            <strong>Preventivo del notaio</strong>: per legge e deontologia il preventivo di massima va
+            rilasciato dal notaio in forma scritta (anche digitale), di regola
+            <em>dopo un esame anche sommario della documentazione</em> della pratica, con indicazione
+            analitica di compenso, spese, oneri, contributi e IVA. {siteConfig.name} non sostituisce tale
+            preventivo: raccoglie i dati utili e inoltra la richiesta allo studio, che risponde in autonomia.
+          </li>
+          <li>
+            <strong>Pubblicità e informazione</strong>: le schede e i contenuti hanno finalità informative;
+            non sono pubblicità ingannevole né ranking “commerciali” pagati per far prevalere uno studio
+            sugli altri nelle richieste di preventivo.
+          </li>
+          <li>
+            <strong>Compensi professionali</strong>: gli onorari notarili per i rapporti ordinari con i
+            privati sono <strong>liberalizzati</strong> (compenso pattuito tra cliente e professionista).
+            Nei casi previsti dalla legge sull’<strong>equo compenso</strong> (L. 49/2023) il notaio non può
+            concordare o preventivare un compenso non giusto, equo e proporzionato secondo i decreti
+            ministeriali vigenti.
+          </li>
+        </ul>
+        <p>
+          Resta fermo che ogni studio resta responsabile della propria condotta deontologica, della qualità
+          della prestazione e del rispetto degli obblighi di legge. {siteConfig.name} non è un Consiglio
+          notarile né un organismo di vigilanza.
+        </p>
+
+        <h2>3. Come funziona la richiesta di preventivo su {siteConfig.name}</h2>
+        <ul>
+          <li>L’utente sceglie servizio, località e uno o più studi a cui inviare la stessa richiesta.</li>
+          <li>
+            La piattaforma inoltra i dati dichiarati (pratica, contatti, eventuali dettagli catastali) agli
+            studi selezionati.
+          </li>
+          <li>
+            Il preventivo ufficiale, analitico e aggiornato lo emette lo studio dopo le verifiche del caso;
+            i valori mostrati sul sito (range medi, benchmark) sono solo orientativi.
+          </li>
+          <li>
+            Nessun impegno professionale sorge verso l’utente fino all’accettazione dell’incarico da parte
+            del notaio e alla pattuizione del compenso nelle forme di legge.
+          </li>
+        </ul>
+
+        <h2>4. Prezzi, tariffe e voci di costo (quadro ufficiale)</h2>
+        <p>
+          Il “costo del notaio” non coincide con il solo onorario. Di solito comprende almeno:
+        </p>
+        <ul>
+          <li>
+            <strong>Onorario / compenso professionale</strong> (più IVA e contributi di legge): libero nella
+            generalità dei rapporti privati; soggetto a equo compenso ove applicabile.
+          </li>
+          <li>
+            <strong>Imposte e tributi</strong> (registro, ipotecaria, catastale, IVA sugli atti, imposta
+            sostitutiva sul mutuo, ecc.): determinate dalla legge fiscale e versate tramite il notaio allo Stato.
+          </li>
+          <li>
+            <strong>Spese e anticipazioni</strong> (visure, bolli, diritti di ufficio, adempimenti presso
+            pubbliche amministrazioni).
+          </li>
+        </ul>
+        <p>
+          Le tariffe professionali obbligatorie di un tempo sono state superate dalla liberalizzazione dei
+          compensi (D.L. 1/2012 e successive modifiche). Per le <strong>imposte</strong> restano vincolanti
+          le aliquote e le regole dell’Agenzia delle Entrate e della tariffa dell’imposta di registro
+          (D.P.R. 131/1986 e successive modifiche). Per l’acquisto casa, il Notariato pubblica guide su
+          aliquote prima casa / seconda casa e sul meccanismo del <em>prezzo-valore</em>.
+        </p>
+        <p>
+          Su {siteConfig.name} i prezzi indicati nelle pagine “Quanto costa” sono
+          <strong>stime informative</strong> derivate da fonti pubbliche e benchmark: non sono listini
+          ufficiali né tariffe ministeriali applicabili automaticamente al tuo caso.
+        </p>
+
+        <h2>5. Fonti e link ufficiali</h2>
+        <ul class="legal-sources">
+          {sources.map((item) => (
+            <li>
+              <a href={item.href} target="_blank" rel="noopener noreferrer">{item.label}</a>
+              <span> — {item.note}</span>
+            </li>
+          ))}
+        </ul>
+        <p>
+          I link puntano a siti istituzionali (Notariato, Normattiva, Agenzia delle Entrate). In caso di
+          contrasto tra sintesi sul sito e testo normativo ufficiale, prevale sempre la fonte ufficiale
+          aggiornata.
+        </p>
+
+        <h2>6. Origine dei dati sulle schede</h2>
+        <p>
+          Nomi, sedi, contatti e riferimenti possono provenire da fonti pubbliche del Notariato, directory
+          aperte, siti degli studi e altri dati pubblicamente disponibili. L’aggiornamento può essere
+          richiesto dallo studio tramite
+          <a href="/claim">procedura di gestione scheda</a>
+          o scrivendo a
+          <a href={`mailto:${siteConfig.publicEmail}`}>{siteConfig.publicEmail}</a>.
+        </p>
+
+        <h2>7. Limiti di responsabilità</h2>
+        <p>
+          {siteConfig.name} non garantisce completezza, aggiornamento continuo o assenza di errori nei dati
+          aggregati, né l’esito delle trattative tra utente e studio. Non risponde di decisioni prese
+          esclusivamente sulla base dei range indicativi pubblicati. L’utente è tenuto a verificare con il
+          notaio scelto documentazione, costi, tempi e condizioni dell’incarico.
+        </p>
+
+        <h2>8. Contatti</h2>
+        <p>
+          Per segnalazioni su contenuti, schede o conformità del servizio:
+          <a href={`mailto:${siteConfig.publicEmail}`}>{siteConfig.publicEmail}</a>
+          · <a href="/contatti">Contatti</a>
+          · <a href="/privacy-policy">Privacy Policy</a>
+          · <a href="/cookie-policy">Cookie Policy</a>.
+        </p>
+      </div>
+    </article>
+  </section>
+</BaseLayout>
+
+<style>
+  .legal-sources {
+    display: grid;
+    gap: 10px;
+  }
+  .legal-sources li span {
+    color: var(--muted);
+    font-size: 0.95em;
+  }
+</style>

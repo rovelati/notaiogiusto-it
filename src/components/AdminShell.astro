@@ -1,0 +1,48 @@
+---
+/**
+ * Shell admin stile veterinari.org: header + sidebar sezioni + main.
+ */
+const { current = 'stats', adminEmail = '' } = Astro.props;
+
+const navItems = [
+  { id: 'stats', href: '/admin-test', label: 'Statistiche', description: 'Panoramica database' },
+  { id: 'users', href: '/admin-test/utenti', label: 'Utenti', description: 'Account notai e clienti' },
+  { id: 'claims', href: '/admin-test/claim', label: 'Claim', description: 'Richieste schede studio' },
+  { id: 'quotes', href: '/admin-test/preventivi', label: 'Preventivi', description: 'Richieste inviate' },
+  { id: 'clients', href: '/admin-test/clienti', label: 'Clienti', description: 'Email e fascicoli' },
+  { id: 'notaries', href: '/admin-test/arricchimenti', label: 'Notai', description: 'Schede e arricchimenti' },
+  { id: 'taxonomy', href: '/admin-test/tassonomia', label: 'Tassonomia', description: 'Servizi e contenuti' },
+];
+---
+<div class="admin-shell">
+  <header class="admin-shell__header">
+    <div class="admin-shell__header-inner">
+      <div>
+        <p class="admin-shell__eyebrow">Console amministrativa</p>
+        <h1 class="admin-shell__brand">NotaioGiusto.it</h1>
+      </div>
+      <div class="admin-shell__badge">
+        Admin: {adminEmail || 'sessione verificata'}
+      </div>
+      <a class="admin-shell__logout" href="/admin/logout">Esci</a>
+    </div>
+  </header>
+  <div class="admin-shell__body">
+    <aside class="admin-shell__aside">
+      <nav class="admin-shell__nav" aria-label="Sezioni admin">
+        {navItems.map((item) => (
+          <a
+            class:list={['admin-shell__nav-item', item.id === current && 'is-active']}
+            href={item.href}
+          >
+            <span class="admin-shell__nav-label">{item.label}</span>
+            <span class="admin-shell__nav-desc">{item.description}</span>
+          </a>
+        ))}
+      </nav>
+    </aside>
+    <main class="admin-shell__main">
+      <slot />
+    </main>
+  </div>
+</div>

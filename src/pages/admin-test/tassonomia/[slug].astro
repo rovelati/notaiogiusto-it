@@ -1,0 +1,92 @@
+---
+import AdminShell from '../../../components/AdminShell.astro';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { getAdminEmail, isAdminAuthenticated } from '../../../lib/admin';
+import { getAdminService, updateAdminServiceContent } from '../../../lib/admin-data';
+
+export const prerender = false;
+
+if (!isAdminAuthenticated(Astro.cookies)) {
+  return Astro.redirect(`/admin/login?next=/admin-test/tassonomia/${Astro.params.slug || ''}`);
+}
+
+const adminEmail = getAdminEmail(Astro.cookies) || '';
+
+const slug = Astro.params.slug || '';
+let service = await getAdminService(slug);
+if (!service) return Astro.redirect('/admin-test/tassonomia');
+
+let saved = false;
+let error = '';
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const ok = await updateAdminServiceContent({
+    slug,
+    seo_title: String(form.get('seo_title') || ''),
+    seo_description: String(form.get('seo_description') || ''),
+    description: String(form.get('description') || ''),
+    html_content: String(form.get('html_content') || ''),
+    image_url: String(form.get('image_url') || ''),
+    content_status: String(form.get('content_status') || 'reviewed'),
+  });
+  if (ok) {
+    saved = true;
+    service = await getAdminService(slug);
+  } else {
+    error = 'Salvataggio non riuscito.';
+  }
+}
+---
+<BaseLayout title={`Modifica ${service.plain_language_name || service.name} | Admin`} noindex={true}>
+  <AdminShell current="taxonomy" adminEmail={adminEmail}>
+  <div class="admin-page">
+    <div class="section-heading">
+      <span class="eyebrow">Admin test</span>
+      <h1>Modifica contenuto servizio</h1>
+      <p>{service.plain_language_name || service.name} · <code>{service.slug}</code></p>
+    </div>
+    
+    {saved && <div class="success">Contenuto salvato nel database.</div>}
+    {error && <div class="error">{error}</div>}
+    <form method="post" class="card funnel-card" style="display:grid;gap:14px;max-width:980px">
+      <label>
+        Stato contenuto
+        <select name="content_status">
+          {['draft', 'generated', 'reviewed', 'published'].map((status) => (
+            <option value={status} selected={service.content_status === status}>{status}</option>
+          ))}
+        </select>
+      </label>
+      <label>
+        SEO title
+        <input name="seo_title" value={service.seo_title || ''} />
+      </label>
+      <label>
+        SEO description
+        <textarea name="seo_description" rows="3">{service.seo_description || ''}</textarea>
+      </label>
+      <label>
+        Abstract breve
+        <textarea name="description" rows="3">{service.description || ''}</textarea>
+      </label>
+      <label>
+        Image URL / path
+        <input name="image_url" value={service.image_url || ''} placeholder="/images/services/...." />
+      </label>
+      {service.image_url && (
+        <img src={service.image_url} alt="" style="max-width:420px;border-radius:8px;border:1px solid var(--line)" />
+      )}
+      <label>
+        HTML contenuto (editabile)
+        <textarea name="html_content" rows="24" style="font-family:ui-monospace,monospace;font-size:13px">{service.html_content || ''}</textarea>
+      </label>
+      <div class="funnel-actions">
+        <button class="btn" type="submit">Salva nel DB</button>
+        <a class="btn secondary" href={`/quanto-costa/${service.slug}`} target="_blank">Vedi pagina pubblica</a>
+        <a class="btn secondary" href="/admin-test/tassonomia">Torna alla lista</a>
+      </div>
+    </form>
+  </div>
+  </AdminShell>
+</BaseLayout>

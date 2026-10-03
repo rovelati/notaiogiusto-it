@@ -304,7 +304,15 @@ def save_enrichment(conn, notary: dict, pg_url: str, record, score: int, reasons
                 ),
             )
             for service in services:
-                cur.execute("select id from notai.services_taxonomy where slug = %s", (service["slug"],))
+                cur.execute(
+                    """
+                    select coalesce(canonical_service_id, id)
+                    from notai.services_taxonomy
+                    where slug = %s
+                    limit 1
+                    """,
+                    (service["slug"],),
+                )
                 row = cur.fetchone()
                 if not row:
                     continue

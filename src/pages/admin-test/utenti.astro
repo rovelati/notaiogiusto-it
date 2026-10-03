@@ -1,0 +1,56 @@
+---
+import AdminShell from '../../components/AdminShell.astro';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getAdminEmail, isAdminAuthenticated } from '../../lib/admin';
+import { listAdminAccounts } from '../../lib/admin-data';
+
+export const prerender = false;
+
+if (!isAdminAuthenticated(Astro.cookies)) {
+  return Astro.redirect('/admin/login?next=/admin-test/utenti');
+}
+
+const adminEmail = getAdminEmail(Astro.cookies) || '';
+const accounts = await listAdminAccounts(200);
+const notaryCount = accounts.filter((a) => a.kind === 'notary').length;
+const clientCount = accounts.filter((a) => a.kind === 'client').length;
+---
+<BaseLayout title="Utenti | Admin test" noindex={true} canonicalPath="/admin-test/utenti">
+  <AdminShell current="users" adminEmail={adminEmail}>
+    <div class="section-heading">
+      <h2>Utenti</h2>
+      <p>
+        Account registrati: {notaryCount} notai · {clientCount} clienti.
+        Admin autorizzato: <code>romolo.velati@gmail.com</code> (env <code>ADMIN_EMAILS</code>).
+      </p>
+    </div>
+    <div class="list">
+      {accounts.length === 0 && <div class="notice">Nessun account registrato ancora.</div>}
+      {accounts.map((account) => (
+        <article class="card admin-request">
+          <div class="admin-request__head">
+            <div>
+              <h3>{account.email}</h3>
+              <p>
+                {account.kind === 'notary' ? 'Area notai' : 'Area clienti'}
+                · {account.google ? 'Google' : ''}
+                {account.google && account.has_password ? ' + ' : ''}
+                {account.has_password ? 'password' : account.google ? '' : '—'}
+              </p>
+            </div>
+            <div class="summary-grid" style="min-width:200px">
+              <div>
+                <span>Ultimo accesso</span>
+                <strong>
+                  {account.last_login_at
+                    ? new Date(account.last_login_at).toLocaleString('it-IT')
+                    : '—'}
+                </strong>
+              </div>
+            </div>
+          </div>
+        </article>
+      ))}
+    </div>
+  </AdminShell>
+</BaseLayout>

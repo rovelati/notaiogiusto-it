@@ -1,0 +1,124 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { titleCase } from '../../lib/format';
+import { getNotaryEmail } from '../../lib/notary-auth';
+import { getNotaryOwnedByEmail, updateOwnedNotaryProfile } from '../../lib/notary-profile';
+
+export const prerender = false;
+
+const email = getNotaryEmail(Astro.cookies);
+if (!email) {
+  return Astro.redirect('/area-notai/accedi?next=/area-notai/scheda');
+}
+
+let notice = '';
+let error = '';
+const justClaimed = Astro.url.searchParams.get('claimed') === '1';
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const result = await updateOwnedNotaryProfile(email, {
+    phone: String(form.get('phone') || ''),
+    emailPublic: String(form.get('email_public') || ''),
+    pec: String(form.get('pec') || ''),
+    website: String(form.get('website') || ''),
+    address: String(form.get('address') || ''),
+    cap: String(form.get('cap') || ''),
+    description: String(form.get('description') || ''),
+  });
+  if (!result.ok) {
+    error = 'Salvataggio non riuscito. Riprova o contatta la redazione.';
+  } else {
+    notice = 'Modifiche salvate.';
+  }
+}
+
+const notary = await getNotaryOwnedByEmail(email);
+const claimLabel =
+  notary?.claim_status === 'approved' || notary?.profile_status === 'verified'
+    ? 'Proprietà verificata'
+    : notary?.claim_status === 'pending' || notary?.profile_status === 'in_revisione'
+      ? 'In verifica redazione'
+      : 'Scheda collegata';
+---
+<BaseLayout
+  title="Modifica scheda studio | Area notai"
+  description="Aggiorna contatti e descrizione della scheda notarile."
+  noindex={true}
+  canonicalPath="/area-notai/scheda"
+>
+  <section class="funnel-hero">
+    <span class="eyebrow">Area notai · dashboard</span>
+    <h1>Modifica scheda</h1>
+    <p class="lead">
+      {notary
+        ? `Stai gestendo ${titleCase(notary.full_name)}${notary.comune ? ` · ${titleCase(notary.comune)}` : ''}.`
+        : 'Nessuna scheda collegata a questa email: avvia il claim.'}
+    </p>
+  </section>
+
+  <section class="section funnel-section">
+    <div class="funnel-stack">
+      {justClaimed && (
+        <div class="success">
+          Claim completato. Puoi aggiornare subito i dati; la verifica business resta in corso fino all’approvazione.
+        </div>
+      )}
+      {notice && <div class="success">{notice}</div>}
+      {error && <div class="error">{error}</div>}
+
+      {!notary ? (
+        <div class="card funnel-card">
+          <h2>Nessuno studio collegato</h2>
+          <p>Per modificare una scheda pubblica devi prima richiederne la gestione.</p>
+          <div class="funnel-actions">
+            <a class="btn blue" href="/claim/start">Richiedi gestione scheda</a>
+            <a class="btn secondary" href="/area-notai/esci">Esci</a>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div class="card funnel-card">
+            <div class="funnel-context">
+              <span class="funnel-context__service"><strong>{claimLabel}</strong></span>
+              <span>{email}</span>
+              <a href={`/notai/${notary.source_slug}`}>Vedi scheda pubblica</a>
+            </div>
+            <p class="helper-text">
+              Nome ufficiale e slug restano dalla fonte Notariato. Qui aggiorni contatti e testo pubblico.
+              {notary.website ? (
+                <>
+                  {' '}Sito salvato: <a rel="nofollow" target="_blank" href={notary.website}>{notary.website}</a>.
+                </>
+              ) : null}
+            </p>
+          </div>
+
+          <form class="card funnel-card" method="post" action="/area-notai/scheda">
+            <h2>Contatti e sede</h2>
+            <div class="funnel-grid">
+              <label>Telefono <input name="phone" value={notary.phone || ''} /></label>
+              <label>Email pubblica <input type="email" name="email_public" value={notary.email || ''} /></label>
+              <label>PEC <input name="pec" value={notary.pec || ''} /></label>
+              <label>
+                Sito web
+                <input name="website" value={notary.website || ''} placeholder="https://www.studio.it" />
+              </label>
+              <label>Indirizzo <input name="address" value={notary.address || ''} /></label>
+              <label>CAP <input name="cap" value={notary.cap || ''} /></label>
+            </div>
+            <label>
+              Descrizione studio
+              <textarea name="description" rows="6" placeholder="Breve presentazione dello studio e degli ambiti di pratica.">{notary.description || ''}</textarea>
+            </label>
+            <div class="funnel-actions">
+              <button class="btn blue" type="submit">Salva modifiche</button>
+              <a class="btn secondary" href={`/notai/${notary.source_slug}`}>Anteprima pubblica</a>
+              <a class="btn secondary" href="/area-notai/esci">Esci</a>
+            </div>
+          </form>
+        </>
+      )}
+    </div>
+  </section>
+</BaseLayout>

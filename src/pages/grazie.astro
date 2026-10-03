@@ -1,18 +1,47 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+
+const tipo = (Astro.url.searchParams.get('tipo') || '').trim().toLowerCase();
+const isClaim = tipo === 'claim';
+const serviceSlug = (Astro.url.searchParams.get('servizio') || '').trim();
+const comune = (Astro.url.searchParams.get('comune') || '').trim();
 ---
 <BaseLayout title="Richiesta ricevuta | NotaioGiusto.it" noindex={true} canonicalPath="/grazie">
+  <div
+    hidden
+    data-analytics-conversion
+    data-type={isClaim ? 'claim' : 'quote_request'}
+    data-service={serviceSlug}
+    data-comune={comune}
+  ></div>
   <section class="section">
     <div class="success">Richiesta ricevuta.</div>
-    <h1>Grazie, abbiamo salvato la richiesta.</h1>
-    <p class="lead">
-      La richiesta è nel database con servizio, località, dettagli pratica e notai selezionati.
-      Puoi già consultarla nell’area clienti con la stessa email usata nel form.
-    </p>
-    <div class="funnel-actions">
-      <a class="btn blue" href="/area-clienti/accedi">Vai all’area clienti</a>
-      <a class="btn secondary" href="/preventivo">Nuova richiesta</a>
-      <a class="btn secondary" href="/">Torna alla home</a>
-    </div>
+    {isClaim ? (
+      <>
+        <h1>Grazie: abbiamo ricevuto la richiesta di gestione scheda.</h1>
+        <p class="lead">
+          La redazione verifica i dati e ti ricontatta sull’email indicata.
+          Dopo l’approvazione potrai aggiornare la scheda e seguire i preventivi dall’area notai.
+        </p>
+        <div class="funnel-actions">
+          <a class="btn blue" href="/area-notai">Area notai</a>
+          <a class="btn secondary" href="/notai">Cerca schede</a>
+          <a class="btn secondary" href="/">Torna alla home</a>
+        </div>
+      </>
+    ) : (
+      <>
+        <h1>Grazie, abbiamo salvato la richiesta.</h1>
+        <p class="lead">
+          La richiesta è nel database con servizio, località, dettagli pratica e notai selezionati.
+          Puoi già consultarla nell’area clienti con la stessa email usata nel form.
+        </p>
+        <div class="funnel-actions">
+          <a class="btn blue" href="/area-clienti/accedi">Vai all’area clienti</a>
+          <a class="btn secondary" href="/preventivo">Nuova richiesta</a>
+          <a class="btn secondary" href="/">Torna alla home</a>
+        </div>
+      </>
+    )}
   </section>
 </BaseLayout>

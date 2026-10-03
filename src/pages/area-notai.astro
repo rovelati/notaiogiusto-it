@@ -1,24 +1,88 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+
+const benefits = [
+  {
+    title: 'Scheda chiara e aggiornata',
+    text: 'Controlli descrizione, contatti, sede, servizi e informazioni utili. Chi ti cerca capisce subito chi sei e come contattarti.',
+  },
+  {
+    title: 'Preventivi già strutturati',
+    text: 'Le richieste arrivano con prestazione, località e dettagli pratica. Meno lead generici, più pratiche valutabili.',
+  },
+  {
+    title: 'Visibilità locale',
+    text: 'Entri nei percorsi “quanto costa”, ricerca per comune e schede collegate alle pratiche più richieste.',
+  },
+];
+
+const steps = [
+  { n: '1', title: 'Trovi la scheda', text: 'Cerca lo studio già presente nel database oppure parti dal link sulla pagina pubblica.' },
+  { n: '2', title: 'Richiedi la gestione', text: 'Inviaci i dati professionali: verifichiamo che la richiesta sia autorizzata.' },
+  { n: '3', title: 'Aggiorni il profilo', text: 'Dopo l’approvazione puoi correggere contatti, servizi e contenuti della scheda.' },
+  { n: '4', title: 'Ricevi le richieste', text: 'Gestisci i preventivi collegati allo studio dall’area notai.' },
+];
 ---
-<BaseLayout title="Area notai | Ricevi richieste qualificate">
-  <section class="hero">
-    <div>
-      <span class="eyebrow">Lato studio notarile</span>
-      <h1>Ricevi richieste complete, non lead generici.</h1>
-      <p class="lead">Rivendichi il profilo, aggiorni ambiti, zone e disponibilità, e ricevi pratiche con informazioni già strutturate.</p>
-      <div class="actions">
-        <a class="btn" href="/claim">Rivendica il profilo</a>
+<BaseLayout
+  title="Area notai | Aggiorna la scheda e ricevi preventivi"
+  description="Area riservata agli studi notarili: rivendica il profilo, aggiorna i dati pubblici e ricevi richieste di preventivo più complete."
+  canonicalPath="/area-notai"
+>
+  <section class="claim-hero">
+    <div class="claim-hero__inner">
+      <p class="eyebrow">Lato studio notarile</p>
+      <h1>Ricevi pratiche più complete, non contatti generici.</h1>
+      <p class="lead claim-hero__lead">
+        Rivendichi il profilo, aggiorni la scheda pubblica e ricevi richieste di preventivo già descritte:
+        prestazione, città e dettagli utili allo studio.
+      </p>
+      <div class="claim-hero__actions">
+        <a class="btn blue" href="/claim/start">Aggiorna gratis la scheda</a>
+        <a class="btn secondary" href="/area-notai/accedi">Accedi dashboard</a>
         <a class="btn secondary" href="/notai">Trova la tua scheda</a>
       </div>
     </div>
-    <div class="card">
-      <h2>CRM leggero MVP</h2>
-      <p>Inbox richieste, score completezza, documenti presenti/mancanti, preventivi strutturati e statistiche su visite, click e richieste.</p>
-      <div class="meta">
-        <span class="pill green">Claim gratuito</span>
-        <span class="pill">Analytics base</span>
-        <span class="pill gold">Max richieste qualificate</span>
+  </section>
+
+  <section class="section">
+    <div class="section-heading">
+      <h2>Perché conviene</h2>
+      <p>NotaioGiusto.it intercetta chi cerca costi, sede e preventivo. Una scheda gestita dallo studio riduce fraintendimenti e migliora la qualità dei contatti.</p>
+    </div>
+    <div class="claim-reason-grid">
+      {benefits.map((item) => (
+        <article class="claim-reason">
+          <h3>{item.title}</h3>
+          <p>{item.text}</p>
+        </article>
+      ))}
+    </div>
+  </section>
+
+  <section class="section claim-steps-section">
+    <div class="section-heading section-heading--center">
+      <h2>Come iniziare</h2>
+      <p>Registrati o accedi (email+password o Google), rivendica la scheda e aggiorna i dati. La redazione conferma la proprietà.</p>
+    </div>
+    <ol class="claim-steps">
+      {steps.map((step) => (
+        <li>
+          <span class="claim-steps__n">{step.n}</span>
+          <div>
+            <h3>{step.title}</h3>
+            <p>{step.text}</p>
+          </div>
+        </li>
+      ))}
+    </ol>
+    <div class="claim-cta" style="margin-top:28px">
+      <div>
+        <h2>Pronto a prendere in carico la scheda?</h2>
+        <p>Ti spieghiamo i passaggi e raccogliamo la richiesta di gestione in pochi minuti.</p>
+      </div>
+      <div class="claim-cta__actions">
+        <a class="btn blue" href="/claim/start">Vai alla rivendicazione</a>
+        <a class="btn secondary" href="/area-notai/accedi">Accedi dashboard</a>
       </div>
     </div>
   </section>

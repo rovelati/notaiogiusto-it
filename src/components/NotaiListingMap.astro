@@ -1,5 +1,5 @@
 ---
-import { averageCenter, openStreetMapEmbedUrl } from '../lib/geo';
+import { averageCenter, hasCoords, isPlausibleItalianPoint } from '../lib/geo';
 
 export type ListingMapPoint = {
   id: string;
@@ -8,57 +8,97 @@ export type ListingMapPoint = {
   address?: string | null;
   lat: number;
   lng: number;
-  rank: number;
+  rank?: number | null;
   exactCity?: boolean;
+};
+
+export type SearchOrigin = {
+  lat: number;
+  lng: number;
+  label?: string;
 };
 
 const {
   points = [],
   locationLabel = '',
+  searchOrigin = null,
+  embedded = false,
+  showHead = true,
+  emptyTitle = 'Mappa in arrivo',
+  emptyText = 'Quando gli studi di questa ricerca avranno coordinate, li vedrai qui senza uscire dalla pagina.',
 } = Astro.props as {
   points?: ListingMapPoint[];
   locationLabel?: string;
+  searchOrigin?: SearchOrigin | null;
+  /** Dentro una card scheda: niente bordo/sticky, altezza più bassa. */
+  embedded?: boolean;
+  showHead?: boolean;
+  emptyTitle?: string;
+  emptyText?: string;
 };
 
 const mapPoints = points
-  .filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng))
-  .slice(0, 24);
+  .filter((point) => hasCoords(point) && isPlausibleItalianPoint(point))
+  .slice(0, 60);
 
-const center = averageCenter(mapPoints) || { lat: 41.9027835, lng: 12.4963655 };
-const zoom = mapPoints.length > 1 ? 12 : 13;
-const fallbackUrl = openStreetMapEmbedUrl(center.lat, center.lng, zoom);
+const origin =
+  searchOrigin &&
+  Number.isFinite(searchOrigin.lat) &&
+  Number.isFinite(searchOrigin.lng) &&
+  isPlausibleItalianPoint({ lat: searchOrigin.lat, lng: searchOrigin.lng })
+    ? {
+        lat: searchOrigin.lat,
+        lng: searchOrigin.lng,
+        label: searchOrigin.label || locationLabel || 'Zona cercata',
+      }
+    : null;
+
+const center =
+  origin || averageCenter(mapPoints) || { lat: 41.9027835, lng: 12.4963655 };
 const payload = JSON.stringify(mapPoints);
+const originPayload = origin ? JSON.stringify(origin) : '';
+const mapId = `listing-map-${Math.random().toString(36).slice(2, 9)}`;
+const panelClass = embedded
+  ? 'listing-map-panel listing-map-panel--embedded'
+  : 'listing-map-panel';
 ---
-<aside class="listing-map-panel" aria-label="Mappa risultati">
-  <div class="listing-map-panel__head">
-    <strong>Mappa</strong>
-    <span>
-      {mapPoints.length
-        ? `${mapPoints.length} studi in mappa${locationLabel ? ` · ${locationLabel}` : ''}`
-        : 'Coordinate non ancora disponibili'}
-    </span>
-  </div>
-  {mapPoints.length ? (
-    <div class="listing-map-shell" data-listing-map data-points={payload} data-center-lat={center.lat} data-center-lng={center.lng}>
-      <iframe
-        class="listing-map-fallback"
-        title={`Mappa notai${locationLabel ? ` a ${locationLabel}` : ''}`}
-        src={fallbackUrl}
-        loading="lazy"
-      ></iframe>
-      <div class="listing-map-canvas" hidden></div>
+<aside class={panelClass} aria-label="Mappa">
+  {showHead && !embedded && (
+    <div class="listing-map-panel__head">
+      <strong>Mappa</strong>
+      <span>
+        {mapPoints.length
+          ? `${mapPoints.length} studi in mappa${locationLabel ? ` · ${locationLabel}` : ''}`
+          : 'Coordinate non ancora disponibili'}
+      </span>
+    </div>
+  )}
+  {mapPoints.length || origin ? (
+    <div
+      class="listing-map-shell"
+      data-listing-map
+      data-map-id={mapId}
+      data-center-lat={center.lat}
+      data-center-lng={center.lng}
+      data-detail-mode={!origin && mapPoints.length === 1 ? '1' : '0'}
+    >
+      <script type="application/json" data-listing-map-json set:html={payload} />
+      {originPayload ? (
+        <script type="application/json" data-listing-map-origin set:html={originPayload} />
+      ) : null}
+      <div class="listing-map-canvas" id={mapId}></div>
     </div>
   ) : (
     <div class="listing-map-empty">
-      <strong>Mappa in arrivo</strong>
-      <span>Quando gli studi di questa ricerca avranno coordinate, li vedrai qui senza uscire dalla pagina.</span>
+      <strong>{emptyTitle}</strong>
+      <span>{emptyText}</span>
     </div>
   )}
 </aside>
 
 <script>
-  import L from 'leaflet';
   import 'leaflet/dist/leaflet.css';
+  import L from 'leaflet';
 
   type Point = {
     id: string;
@@ -67,74 +107,219 @@ const payload = JSON.stringify(mapPoints);
     address?: string | null;
     lat: number;
     lng: number;
-    rank: number;
-    exactCity?: boolean;
+    rank?: number | null;
   };
 
-  const blueIcon = new L.Icon({
-    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png',
-    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41],
-  });
+  type Origin = { lat: number; lng: number; label?: string };
 
-  const goldIcon = new L.Icon({
-    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-gold.png',
-    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41],
-  });
+  function bluePin(rank?: number | null) {
+    const label = rank != null && rank > 0 ? String(rank) : '';
+    return L.divIcon({
+      className: 'notai-map-pin',
+      html: `<span class="notai-map-pin__dot${label ? '' : ' notai-map-pin__dot--plain'}">${label}</span>`,
+      iconSize: [28, 28],
+      iconAnchor: [14, 14],
+      popupAnchor: [0, -14],
+    });
+  }
+
+  function redPin() {
+    return L.divIcon({
+      className: 'notai-map-pin notai-map-pin--origin',
+      html: `<span class="notai-map-pin__origin" title="Zona cercata"></span>`,
+      iconSize: [22, 34],
+      iconAnchor: [11, 32],
+      popupAnchor: [0, -28],
+    });
+  }
+
+  function readJson<T>(root: HTMLElement, selector: string): T | null {
+    const node = root.querySelector(selector);
+    if (!node?.textContent) return null;
+    try {
+      return JSON.parse(node.textContent) as T;
+    } catch {
+      return null;
+    }
+  }
+
+  function isPlausible(lat: number, lng: number) {
+    return (
+      Number.isFinite(lat) &&
+      Number.isFinite(lng) &&
+      !(lat === 0 && lng === 0) &&
+      lat >= 35 &&
+      lat <= 48 &&
+      lng >= 6 &&
+      lng <= 19.5
+    );
+  }
 
   function initMap(root: HTMLElement) {
     if (root.dataset.mapReady === '1') return;
     const canvas = root.querySelector<HTMLElement>('.listing-map-canvas');
-    const fallback = root.querySelector<HTMLElement>('.listing-map-fallback');
     if (!canvas) return;
 
-    let points: Point[] = [];
-    try {
-      points = JSON.parse(root.dataset.points || '[]') as Point[];
-    } catch {
-      return;
-    }
-    if (!points.length) return;
-
-    const centerLat = Number(root.dataset.centerLat);
-    const centerLng = Number(root.dataset.centerLng);
-    const map = L.map(canvas, { scrollWheelZoom: false }).setView(
-      [centerLat || points[0].lat, centerLng || points[0].lng],
-      points.length > 1 ? 12 : 13,
+    const rawPoints = readJson<Point[]>(root, '[data-listing-map-json]') || [];
+    const points = (Array.isArray(rawPoints) ? rawPoints : []).filter((point) =>
+      isPlausible(point.lat, point.lng),
     );
+    const originRaw = readJson<Origin>(root, '[data-listing-map-origin]');
+    const origin =
+      originRaw && isPlausible(originRaw.lat, originRaw.lng)
+        ? originRaw
+        : null;
+
+    if (!points.length && !origin) return;
+
+    const detailMode = root.dataset.detailMode === '1';
+    const centerLat = Number(root.dataset.centerLat) || origin?.lat || points[0]?.lat;
+    const centerLng = Number(root.dataset.centerLng) || origin?.lng || points[0]?.lng;
+    const map = L.map(canvas, {
+      scrollWheelZoom: false,
+      zoomControl: true,
+    }).setView([centerLat, centerLng], detailMode ? 15 : 11);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(map);
 
     const layer = L.featureGroup();
-    points.forEach((point) => {
-      const marker = L.marker([point.lat, point.lng], {
-        icon: point.exactCity ? goldIcon : blueIcon,
-      }).bindPopup(
-        `<strong>${point.rank}. ${point.name}</strong>` +
-          (point.address ? `<div>${point.address}</div>` : '') +
-          `<div><a href="/notai/${point.slug}">Vedi scheda</a></div>`,
-      );
-      marker.addTo(layer);
-    });
-    layer.addTo(map);
-    if (points.length > 1) {
-      map.fitBounds(layer.getBounds(), { padding: [28, 28], maxZoom: 14 });
+
+    if (origin) {
+      const label = origin.label || 'Zona cercata';
+      L.marker([origin.lat, origin.lng], { icon: redPin(), zIndexOffset: 1000 })
+        .bindPopup(`<strong>${label}</strong><div>Centro della ricerca</div>`)
+        .addTo(layer);
     }
 
-    canvas.hidden = false;
-    if (fallback) fallback.hidden = true;
+    points.forEach((point) => {
+      const rank = point.rank != null && point.rank > 0 ? point.rank : null;
+      const title = rank ? `${rank}. ${point.name}` : point.name;
+      const popup =
+        `<strong>${title}</strong>` +
+        (point.address ? `<div>${point.address}</div>` : '') +
+        (detailMode
+          ? ''
+          : `<div><a href="/notai/${point.slug}">Vedi scheda</a></div>`);
+      L.marker([point.lat, point.lng], { icon: bluePin(rank) }).bindPopup(popup).addTo(layer);
+    });
+    layer.addTo(map);
+
+    const fitAll = () => {
+      const bounds = layer.getBounds();
+      if (!bounds.isValid()) return;
+      const count = points.length + (origin ? 1 : 0);
+      if (count <= 1) {
+        map.setView(
+          origin ? [origin.lat, origin.lng] : bounds.getCenter(),
+          detailMode ? 15 : 13,
+        );
+        return;
+      }
+      // Centra sul comune cercato (pin rosso); lo zoom resta quello che include i pin.
+      if (origin && !detailMode) {
+        map.fitBounds(bounds.pad(0.22), {
+          maxZoom: 13,
+          padding: [28, 28],
+        });
+        map.setView([origin.lat, origin.lng], map.getZoom());
+        return;
+      }
+      map.fitBounds(bounds.pad(0.22), {
+        maxZoom: 13,
+        padding: [28, 28],
+      });
+    };
+
+    fitAll();
+
     root.dataset.mapReady = '1';
-    requestAnimationFrame(() => map.invalidateSize());
+    const refresh = () => {
+      map.invalidateSize();
+      fitAll();
+    };
+    requestAnimationFrame(refresh);
+    setTimeout(refresh, 120);
+    setTimeout(refresh, 400);
+    setTimeout(refresh, 900);
+    window.addEventListener('resize', refresh, { passive: true });
   }
 
-  document.querySelectorAll<HTMLElement>('[data-listing-map]').forEach(initMap);
+  function boot() {
+    document.querySelectorAll<HTMLElement>('[data-listing-map]').forEach(initMap);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot, { once: true });
+  } else {
+    boot();
+  }
 </script>
+
+<style is:global>
+  .notai-map-pin {
+    background: transparent;
+    border: 0;
+  }
+  .notai-map-pin__dot {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #1d4ed8;
+    color: #fff;
+    font: 800 12px/1 "Source Sans 3", "Segoe UI", sans-serif;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 8px rgba(15, 39, 70, 0.35);
+  }
+  .notai-map-pin__dot--plain {
+    width: 18px;
+    height: 18px;
+    border-width: 3px;
+    box-shadow: 0 2px 10px rgba(15, 39, 70, 0.45);
+  }
+  .notai-map-pin__origin {
+    display: block;
+    width: 18px;
+    height: 18px;
+    margin: 0 auto;
+    border-radius: 50% 50% 50% 0;
+    background: #c62828;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 10px rgba(120, 20, 20, 0.45);
+    transform: rotate(-45deg);
+  }
+  .notai-map-pin__origin::after {
+    content: "";
+    position: absolute;
+    inset: 4px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.35);
+    transform: rotate(45deg);
+  }
+  .listing-map-canvas {
+    width: 100%;
+    height: min(68vh, 640px);
+    min-height: 420px;
+    background: #dbe7f5;
+  }
+  .listing-map-panel--embedded {
+    position: static;
+    border: 0;
+    border-radius: 8px;
+    box-shadow: none;
+    overflow: hidden;
+  }
+  .listing-map-panel--embedded .listing-map-shell,
+  .listing-map-panel--embedded .listing-map-canvas {
+    height: 360px;
+    min-height: 300px;
+  }
+  .listing-map-shell [data-listing-map-json],
+  .listing-map-shell [data-listing-map-origin] {
+    display: none;
+  }
+</style>

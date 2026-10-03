@@ -1,0 +1,89 @@
+---
+import { siteConfig } from '../lib/site';
+
+const year = new Date().getFullYear();
+const usefulLinks = [
+  { href: '/', label: 'Home' },
+  { href: '/notai', label: 'Cerca notai' },
+  { href: '/quanto-costa', label: 'Quanto costa?' },
+  { href: '/preventivo', label: 'Richiesta preventivo', nofollow: true },
+  { href: '/area-clienti', label: 'Area clienti', nofollow: true },
+  { href: '/area-notai', label: 'Area notai' },
+  { href: '/chi-siamo', label: 'Chi siamo' },
+  { href: '/contatti', label: 'Contattaci' },
+];
+const legalLinks = [
+  { href: '/privacy-policy', label: 'Privacy Policy' },
+  { href: '/cookie-policy', label: 'Cookie Policy' },
+  { href: '/note-legali', label: 'Note legali' },
+  { href: '/credits', label: 'Credits' },
+];
+---
+
+<footer class="site-footer">
+  <div class="site-footer__grid">
+    <section>
+      <h2>Contatti</h2>
+      <p>
+        {siteConfig.name} raccoglie e organizza dati pubblici sugli studi notarili italiani per facilitare
+        la ricerca di notai, costi indicativi e richieste di preventivo. I titolari possono chiedere aggiornamenti
+        o correzioni scrivendo alla redazione.
+      </p>
+      <p class="site-footer__strong">Redazione digitale · Italia</p>
+      <a class="site-footer__accent" href={`mailto:${siteConfig.publicEmail}`}>{siteConfig.publicEmail}</a>
+      <a
+        class="site-footer__accent site-footer__accent--block"
+        href={`mailto:${siteConfig.publicEmail}?subject=${encodeURIComponent('Richiesta aggiornamento scheda notaio')}`}
+      >
+        Richiedi aggiornamento scheda notaio
+      </a>
+      <p class="site-footer__note">
+        Al momento non è disponibile assistenza telefonica: contattaci via email per collaborazioni e segnalazioni.
+      </p>
+    </section>
+
+    <section>
+      <h2>Link utili</h2>
+      <ul>
+        {usefulLinks.map((link) => (
+          <li><a href={link.href} rel={link.nofollow ? 'nofollow' : undefined}>{link.label}</a></li>
+        ))}
+      </ul>
+    </section>
+
+    <section>
+      <h2>Link legali</h2>
+      <ul>
+        {legalLinks.map((link) => (
+          <li><a href={link.href}>{link.label}</a></li>
+        ))}
+      </ul>
+    </section>
+
+    <section>
+      <div class="site-footer__brand">
+        <img src="/brand/mark.svg" width="40" height="40" alt="" decoding="async" />
+        <strong>{siteConfig.name}</strong>
+      </div>
+      <p>
+        Portale indipendente per trovare notai, capire i costi delle pratiche e richiedere preventivi
+        qualificati. Le schede sono aggiornabili dagli studi notarili.
+      </p>
+      <a class="site-footer__claim" rel="nofollow" href="/claim">Aggiorna gratis la scheda</a>
+      <p class="site-footer__note">
+        I costi sono indicativi: imposte, bolli e onorari variano in base alla pratica e vanno confermati dallo studio.
+      </p>
+    </section>
+  </div>
+
+  <div class="site-footer__bottom">
+    <div class="site-footer__bottom-inner">
+      <p>© {year} {siteConfig.legalName}. Tutti i diritti riservati.</p>
+      <div class="site-footer__bottom-links">
+        {legalLinks.map((link) => (
+          <a href={link.href}>{link.label}</a>
+        ))}
+      </div>
+    </div>
+  </div>
+</footer>

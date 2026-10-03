@@ -1,12 +1,16 @@
 .env
 .env.*
 !.env.example
+*.env
+client_secret_*.json
+notai-gsc-ga4.json
 NUOVO-SERVER.ssh
 chiave-google-places.env
 *.pem
 *.key
 *.p12
 *.pfx
+SCRIPT/DB/state/
 
 node_modules/
 dist/
@@ -21,3 +25,4 @@ SCRIPT/DB/.env
 SCRIPT/DB/.env.*
 !SCRIPT/DB/.env.example
 SCRIPT/DB/__pycache__/
+.cloudflare-token

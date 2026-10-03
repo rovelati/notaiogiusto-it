@@ -1,49 +1,70 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import NotaiSearchBar from '../components/NotaiSearchBar.astro';
 import { euro } from '../lib/format';
 import { getStats, getTopServices } from '../lib/notai';
 
 const [services, stats] = await Promise.all([getTopServices(9), getStats()]);
+
+const heroActions = [
+  {
+    label: 'Quanto costa?',
+    helper: 'Range indicativi per le pratiche più comuni',
+    href: '/quanto-costa',
+  },
+  {
+    label: 'Cerca notai',
+    helper: 'Profili da fonte ufficiale Notariato',
+    href: '/notai',
+  },
+  {
+    label: 'Preventivo',
+    helper: 'Richiesta guidata fino a 10 studi',
+    href: '/preventivo',
+    nofollow: true,
+  },
+];
 ---
 <BaseLayout title="NotaioGiusto.it | Trova il notaio giusto e arriva preparato all'atto">
-  <section class="hero">
-    <div>
-      <span class="eyebrow">Notai, costi e preventivi</span>
-      <h1>Capisci quanto costa un atto notarile e chiedi un preventivo chiaro.</h1>
-      <p class="lead">
-        Scegli la pratica, indica la località e prepara una richiesta completa: prezzo indicativo, documenti utili e studi notarili da contattare.
-      </p>
-      <div class="hero-points">
-        <span>Range prezzo per orientarti prima di chiamare</span>
-        <span>Richiesta ordinata con servizio, città e dettagli</span>
-        <span>Profili da fonte ufficiale Notariato</span>
+  <section class="home-hero">
+    <div class="home-hero__glow" aria-hidden="true"></div>
+    <div class="home-hero__inner">
+      <div class="home-hero__intro">
+        <img
+          class="home-hero__logo"
+          src="/brand/mark.svg"
+          width="72"
+          height="72"
+          alt=""
+          decoding="async"
+        />
+        <h1>NotaioGiusto.it</h1>
+        <p class="home-hero__tagline">Trova il notaio giusto e arriva preparato all’atto</p>
+        <div class="home-hero__actions">
+          {heroActions.map((action) => (
+            <a class="home-hero__action" href={action.href} rel={action.nofollow ? 'nofollow' : undefined}>
+              <img class="home-hero__action-mark" src="/brand/mark.svg" width="34" height="34" alt="" decoding="async" />
+              <span>
+                <strong>{action.label}</strong>
+                <em>{action.helper}</em>
+              </span>
+            </a>
+          ))}
+        </div>
+      </div>
+
+      <div class="home-hero__search">
+        <NotaiSearchBar variant="hero" />
+        <p class="home-hero__hint">
+          Cosa = nome o pratica. Dove = città.
+          <a href="/preventivo" rel="nofollow">Oppure vai al preventivo guidato</a>.
+        </p>
       </div>
     </div>
-    <form class="search-panel" action="/notai" method="get">
-      <h2>Da quale pratica vuoi partire?</h2>
-      <div class="form-grid">
-        <label>
-          Servizio
-          <select name="servizio">
-            <option value="">Scegli un servizio</option>
-            {services.map((service) => (
-              <option value={service.slug}>{service.plain_language_name || service.name}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Dove
-          <input name="comune" placeholder="Es. Milano" />
-        </label>
-        <button class="btn" type="submit">Cerca</button>
-      </div>
-      <p class="helper-text">Esempio: acquisto prima casa, successione, procura, costituzione SRL.</p>
-      <p class="helper-text"><a href="/preventivo">Oppure vai al preventivo guidato</a> e seleziona fino a 3 notai.</p>
-    </form>
   </section>
 
   <section class="section">
-    <div class="section-heading">
+    <div class="section-heading section-heading--center">
       <span class="eyebrow">Quanto costa?</span>
       <h2>Le pratiche notarili più cercate</h2>
       <p>Ogni pagina spiega quando serve la prestazione, cosa incide sul prezzo, quali documenti preparare e come chiedere un preventivo.</p>
@@ -56,7 +77,9 @@ const [services, stats] = await Promise.all([getTopServices(9), getStats()]);
           <div class="price">{euro(service.price_avg_cents)}</div>
           <div class="meta">
             <span class="pill green">Preventivo qualificato</span>
-            <span class="pill gold">{service.complexity || 'media'}</span>
+            <span class="pill gold">
+              Complessità {(service.complexity || 'media').replace(/^./, (c) => c.toUpperCase())}
+            </span>
           </div>
         </a>
       ))}
@@ -74,7 +97,7 @@ const [services, stats] = await Promise.all([getTopServices(9), getStats()]);
         <h3>Base dati in costruzione</h3>
         <p>
           Partiamo da {Number(stats.notaries).toLocaleString('it-IT')} notai da fonte ufficiale e {stats.services} servizi classificati.
-          I numeri servono come garanzia tecnica, non come messaggio principale per l utente.
+          I numeri servono come garanzia tecnica, non come messaggio principale per l’utente.
         </p>
       </div>
     </div>

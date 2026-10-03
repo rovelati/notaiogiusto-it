@@ -1,6 +1,6 @@
 # Stato progetto NotaioGiusto.it
 
-Aggiornato: 2026-08-13 (blocco intake prestazioni + admin-test)
+Aggiornato: 2026-10-03 (ottimizzazioni SEO/CWV: self-hosted fonts, async CMP, Leaflet CSS bundling, allow rules robots.txt + strategia Link Building)
 
 ## Obiettivo
 
@@ -66,13 +66,41 @@ Regola operativa invariata:
 - **servizio probabile**: ipotesi da arricchimento, da confermare;
 - **servizio solo richiesto dall’utente**: scelto nel funnel/preventivo, non implica offerta dichiarata dello studio.
 
-Nel funnel preventivo i notai selezionati vengono etichettati come “Servizio solo richiesto”.
+Nel funnel preventivo i badge sono:
+- “Servizio dichiarato” / “Servizio affine dichiarato” se c’è match in `notai.notary_services` (exact o tassonomia affine);
+- altrimenti “Servizio solo richiesto”.
+
+### Funnel: antispam + ranking
+
+- Passo 4: captcha matematico firmato (`src/lib/antispam.ts`) + honeypot; check in `POST /api/quote-request`.
+- Passo 3: ordine = già selezionato → dichiarato exact → affine dichiarato → comune → resto.
+- Affinità es. `acquisto-casa-con-mutuo` ↔ compravendita/mutuo/preliminare.
+- Coverage dichiarazioni ancora bassa: batch **Virgilio aziende** Milano in corso (PagineGialle abbandonato per AWS WAF).
 
 ## MVP applicativo realizzato
 
+### UI: menu mobile + tema Solar
+
+- hamburger header: linee a larghezza piena (`inline-flex` + `width: 100%`; bug precedente: `place-items: center` azzerava gli span vuoti);
+- tema alternativo **Solar** (scuro caldo oro/crema notarile) con toggle in header e preferenza in `localStorage` (`ng-theme`);
+- token CSS semantici in `public/styles.css` + font Source Serif 4 / Source Sans 3.
+
 ### Homepage / listing / scheda / quanto-costa / claim
 
+- `/quanto-costa` → **4 pagine macro-area** `/quanto-costa/categoria/{slug}` → dettaglio `/quanto-costa/[servizio]` (breadcrumb Home / Quanto costa / Macro / Servizio)
+- `/quanto-costa/[servizio]` con link SEO ai **capoluoghi** → `/quanto-costa/{citta}-{prov}/[servizio]/notai`
+- listing locale: notai del comune, se pochi amplia al **distretto notarile** (es. Varese → distretto MI/VA)
+- helper `src/lib/locations.ts` (CAPOLUOGHI, macroCategory, slug località)
+
 Restano attivi e collegati al nuovo funnel preventivo.
+
+### Geocoding (Nominatim OSM, gratis)
+
+- script `SCRIPT/DB/geocode_nominatim_notai.py` (+ `README_NOMINATIM_NOTAI.md`)
+- delay 1.2s, cache in `SCRIPT/DB/state/nominatim_geocode_cache.json`
+- scrive `lat/lng` con `coalesce` + enrichment `source=nominatim`
+- Virgilio resta fonte secondaria (match anagrafico), non dipende da API a pagamento
+- batch server (2026-08-14): **completato** su `37.60.255.18` (~3852 tentati, ~3035 geocodificati; DB ~78%+ con lat/lng)
 
 ### Mappe embedded (stile Horizon)
 

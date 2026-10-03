@@ -1,0 +1,140 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { loginNotaryAccount, registerNotaryAccount } from '../../lib/notary-accounts';
+import { getNotaryEmail, hasNotaryAuthSecret, setNotarySession } from '../../lib/notary-auth';
+import { isGoogleOAuthConfigured } from '../../lib/google-oauth';
+
+export const prerender = false;
+
+if (getNotaryEmail(Astro.cookies)) {
+  return Astro.redirect('/area-notai/scheda');
+}
+
+const nextRaw = (Astro.url.searchParams.get('next') || '/area-notai/scheda').trim();
+const next = nextRaw.startsWith('/') ? nextRaw : '/area-notai/scheda';
+const modeParam = Astro.url.searchParams.get('mode') === 'register' ? 'register' : 'login';
+const googleEnabled = isGoogleOAuthConfigured();
+const googleHref = `/api/auth/google/start?audience=notary&redirect_to=${encodeURIComponent(next)}`;
+
+let mode: 'login' | 'register' = modeParam;
+let error = '';
+let submittedEmail = '';
+
+if (Astro.url.searchParams.get('errore') === 'google') {
+  error = 'Accesso Google non riuscito. Riprova o usa email e password.';
+}
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const action = String(form.get('action') || '').trim();
+  const email = String(form.get('email') || '').trim().toLowerCase();
+  const password = String(form.get('password') || '');
+  submittedEmail = email;
+
+  if (!hasNotaryAuthSecret()) {
+    error = 'AUTH_SECRET o ADMIN_TOKEN non configurato sul server.';
+  } else if (action === 'register') {
+    mode = 'register';
+    const password2 = String(form.get('password2') || '');
+    if (password !== password2) {
+      error = 'Le password non coincidono.';
+    } else {
+      const result = await registerNotaryAccount(email, password);
+      if (!result.ok) {
+        error =
+          result.error === 'already_registered'
+            ? 'Email già registrata. Accedi con la password o con Google.'
+            : result.error === 'weak_password'
+              ? 'La password deve avere almeno 8 caratteri.'
+              : 'Email non valida.';
+        if (result.error === 'already_registered') mode = 'login';
+      } else {
+        setNotarySession(Astro.cookies, result.email);
+        return Astro.redirect(next);
+      }
+    }
+  } else {
+    mode = 'login';
+    const result = await loginNotaryAccount(email, password);
+    if (!result.ok) {
+      error =
+        result.error === 'use_google'
+          ? 'Questo account usa Google Login. Clicca «Continua con Google».'
+          : 'Email o password non corretti.';
+    } else {
+      setNotarySession(Astro.cookies, result.email);
+      return Astro.redirect(next);
+    }
+  }
+}
+---
+<BaseLayout title="Accedi area notai | NotaioGiusto.it" noindex={true} canonicalPath="/area-notai/accedi">
+  <section class="section auth-page">
+    <div class="card funnel-card auth-card">
+      <span class="eyebrow">Area notai</span>
+      <h1>{mode === 'register' ? 'Crea account studio' : 'Accedi all’area notai'}</h1>
+      <p class="lead">
+        {mode === 'register'
+          ? 'Registrati con email e password, oppure con Google. Nessun link da confermare via email.'
+          : 'Accedi con email e password oppure con Google.'}
+      </p>
+
+      <div class="funnel-actions" style="margin-bottom:1rem">
+        <a class={`btn ${mode === 'login' ? 'blue' : 'secondary'}`} rel="nofollow" href={`/area-notai/accedi?mode=login&next=${encodeURIComponent(next)}`}>Accedi</a>
+        <a class={`btn ${mode === 'register' ? 'blue' : 'secondary'}`} rel="nofollow" href={`/area-notai/accedi?mode=register&next=${encodeURIComponent(next)}`}>Registrati</a>
+      </div>
+
+      {error && <div class="error">{error}</div>}
+
+      {googleEnabled ? (
+        <div class="funnel-actions" style="margin-bottom:1.25rem">
+          <a class="btn secondary auth-google-btn" rel="nofollow" href={googleHref}>Continua con Google</a>
+        </div>
+      ) : (
+        <div class="notice" style="margin-bottom:1rem">
+          Google Login non è ancora configurato sul server (<code>GOOGLE_OAUTH_CLIENT_ID</code> / <code>SECRET</code>).
+        </div>
+      )}
+
+      <p class="helper-text" style="margin-bottom:1rem;text-align:center">oppure con email</p>
+
+      {mode === 'register' ? (
+        <form method="post" action={`/area-notai/accedi?mode=register&next=${encodeURIComponent(next)}`}>
+          <input type="hidden" name="action" value="register" />
+          <label>
+            Email professionale
+            <input required type="email" name="email" value={submittedEmail} placeholder="nome@studio.it" autocomplete="email" />
+          </label>
+          <label>
+            Password (min. 8 caratteri)
+            <input required type="password" name="password" minlength="8" autocomplete="new-password" />
+          </label>
+          <label>
+            Conferma password
+            <input required type="password" name="password2" minlength="8" autocomplete="new-password" />
+          </label>
+          <div class="funnel-actions">
+            <button class="btn blue" type="submit">Registrati</button>
+            <a class="btn secondary" href="/claim/start">Richiedi gestione scheda</a>
+          </div>
+        </form>
+      ) : (
+        <form method="post" action={`/area-notai/accedi?mode=login&next=${encodeURIComponent(next)}`}>
+          <input type="hidden" name="action" value="login" />
+          <label>
+            Email professionale
+            <input required type="email" name="email" value={submittedEmail} placeholder="nome@studio.it" autocomplete="email" />
+          </label>
+          <label>
+            Password
+            <input required type="password" name="password" minlength="8" autocomplete="current-password" />
+          </label>
+          <div class="funnel-actions">
+            <button class="btn blue" type="submit">Accedi</button>
+            <a class="btn secondary" href="/claim/start">Richiedi gestione scheda</a>
+          </div>
+        </form>
+      )}
+    </div>
+  </section>
+</BaseLayout>

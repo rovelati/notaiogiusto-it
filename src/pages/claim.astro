@@ -1,19 +1,143 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-const notaryId = Astro.url.searchParams.get('notary') || '';
+import { titleCase } from '../lib/format';
+import { getNotaryById } from '../lib/notai';
+
+const notaryId = (Astro.url.searchParams.get('notary') || '').trim();
+const notary = notaryId ? await getNotaryById(notaryId) : null;
+const studioLabel = notary ? titleCase(notary.full_name) : '';
+const addressLine = notary
+  ? [notary.address, notary.cap, notary.comune ? titleCase(notary.comune) : null].filter(Boolean).join(', ')
+  : '';
+const startHref = notary ? `/claim/start?notary=${encodeURIComponent(notary.id)}` : '/claim/start';
+
+const reasons = [
+  {
+    title: 'Contatti e sede aggiornati',
+    text: 'Telefono, email, PEC, sito e indirizzo corretti aiutano chi cerca un notaio a contattarti senza errori.',
+  },
+  {
+    title: 'Servizi e ambiti di pratica',
+    text: 'Puoi indicare le pratiche che segui davvero: immobili, successioni, società, autentiche. Meno richieste fuori target.',
+  },
+  {
+    title: 'Preventivi più qualificati',
+    text: 'Chi arriva da NotaioGiusto.it spesso ha già scelto una prestazione e una città: ricevi pratiche più complete.',
+  },
+  {
+    title: 'Controllo della scheda pubblica',
+    text: 'Dopo il claim puoi aggiornare subito i dati; la redazione conferma la verifica della proprietà.',
+  },
+];
+
+const steps = [
+  {
+    n: '1',
+    title: 'Accedi con email',
+    text: 'Generi un link di accesso all’area notai con l’email professionale dello studio.',
+  },
+  {
+    n: '2',
+    title: 'Dichiarazione e selezione',
+    text: 'Confermi di essere autorizzato e scegli la scheda da gestire (o parti dal link sulla pagina pubblica).',
+  },
+  {
+    n: '3',
+    title: 'Richiedi la gestione',
+    text: 'Invii la richiesta: la scheda ti viene assegnata in revisione e puoi già aggiornare i contatti.',
+  },
+  {
+    n: '4',
+    title: 'Verifica e dashboard',
+    text: 'La redazione conferma la proprietà. Dall’area notai continui a modificare la scheda pubblica.',
+  },
+];
 ---
-<BaseLayout title="Rivendica profilo notaio" noindex={true}>
+<BaseLayout
+  title="Aggiorna gratis la scheda dello studio | NotaioGiusto.it"
+  description="Rivendica il profilo del tuo studio notarile: aggiorna contatti e ricevi preventivi più qualificati."
+  noindex={true}
+  canonicalPath="/claim"
+>
+  <section class="claim-hero">
+    <div class="claim-hero__inner">
+      <p class="eyebrow">Area notai · gratuito</p>
+      <h1>Vuoi aggiornare i dati del tuo studio?</h1>
+      <p class="lead claim-hero__lead">
+        Flusso guidato: accesso con email, dichiarazione, selezione scheda e conferma.
+        Poi modifichi telefono, email, PEC, sito e descrizione dall’area notai.
+      </p>
+
+      {notary ? (
+        <div class="claim-selected">
+          <p class="claim-selected__label">Studio selezionato</p>
+          <h2>{studioLabel}</h2>
+          {addressLine && <p>{addressLine}</p>}
+          <p class="helper-text">
+            Stai chiedendo la gestione di questa scheda.
+            <a href={`/notai/${notary.source_slug}`}>Vedi la pagina pubblica</a>
+          </p>
+          <div class="claim-hero__actions" style="margin-top:16px">
+            <a class="btn blue" rel="nofollow" href={startHref}>Continua la richiesta</a>
+            <a class="btn secondary" href="/area-notai/accedi">Ho già l’accesso</a>
+          </div>
+        </div>
+      ) : (
+        <div class="claim-hero__actions">
+          <a class="btn blue" rel="nofollow" href={startHref}>Inizia richiesta di gestione</a>
+          <a class="btn secondary" href="/area-notai/accedi">Accedi area notai</a>
+          <a class="btn secondary" href="/notai">Trova prima la tua scheda</a>
+        </div>
+      )}
+    </div>
+  </section>
+
   <section class="section">
-    <span class="eyebrow">Claim gratuito</span>
-    <h1>Rivendica il profilo dello studio</h1>
-    <p class="lead">Nel MVP raccogliamo la richiesta di presa possesso. La verifica finale resta manuale/admin.</p>
-    <form class="quote-box" action="/api/claim" method="post">
-      <input type="hidden" name="notary_id" value={notaryId} />
-      <label>Nome e cognome <input required name="name" /></label>
-      <label>Email professionale <input required type="email" name="email" /></label>
-      <label>Telefono <input name="phone" /></label>
-      <label>Messaggio <textarea name="message" placeholder="Indica studio, ruolo e dati da aggiornare"></textarea></label>
-      <button class="btn" type="submit">Invia richiesta claim</button>
-    </form>
+    <div class="section-heading">
+      <h2>Perché rivendicare la scheda</h2>
+      <p>Chi cerca un notaio confronta costi, sede e preventivo. Una scheda aggiornata riduce telefonate inutili.</p>
+    </div>
+    <div class="claim-reason-grid">
+      {reasons.map((item) => (
+        <article class="claim-reason">
+          <h3>{item.title}</h3>
+          <p>{item.text}</p>
+        </article>
+      ))}
+    </div>
+  </section>
+
+  <section class="section claim-steps-section">
+    <div class="section-heading section-heading--center">
+      <h2>Come funziona</h2>
+      <p>Quattro passaggi: accesso → dichiarazione → selezione → conferma e modifica.</p>
+    </div>
+    <ol class="claim-steps">
+      {steps.map((step) => (
+        <li>
+          <span class="claim-steps__n">{step.n}</span>
+          <div>
+            <h3>{step.title}</h3>
+            <p>{step.text}</p>
+          </div>
+        </li>
+      ))}
+    </ol>
+  </section>
+
+  <section class="section" id="richiesta">
+    <div class="claim-cta">
+      <div>
+        <h2>Pronto a gestire la scheda?</h2>
+        <p>
+          Accedi con l’email professionale, seleziona lo studio e richiedi la gestione.
+          Dopo il claim puoi aggiornare subito i contatti; la redazione conferma lo stato verificato.
+        </p>
+      </div>
+      <div class="claim-cta__actions">
+        <a class="btn blue" rel="nofollow" href={startHref}>Avvia claim scheda</a>
+        <a class="btn secondary" href="/area-notai/scheda">Apri dashboard</a>
+      </div>
+    </div>
   </section>
 </BaseLayout>

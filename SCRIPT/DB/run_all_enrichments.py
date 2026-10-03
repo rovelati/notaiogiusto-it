@@ -92,6 +92,9 @@ def main() -> int:
     parser.add_argument("--virgilio-max-delay", type=float, default=14.0)
     parser.add_argument("--include-paginegialle", action="store_true")
     parser.add_argument("--paginegialle-limit", type=int, default=50)
+    parser.add_argument("--include-google", action="store_true")
+    parser.add_argument("--google-limit", type=int, default=25)
+    parser.add_argument("--google-max-cost-usd", type=float, default=5.0)
     parser.add_argument("--apply", action="store_true")
     args = parser.parse_args()
     load_dotenv(SCRIPT_DIR / ".env")
@@ -177,6 +180,28 @@ def main() -> int:
                     *(["--apply"] if args.apply else []),
                 ],
             )
+        )
+
+    if args.include_google:
+        steps.extend(
+            [
+                (
+                    "schema_google_places",
+                    ["psql", database_url, "-f", str(SCRIPT_DIR / "schema_google_places_notai.sql")],
+                ),
+                (
+                    "google_places",
+                    [
+                        "python3",
+                        "enrich_google_places_notai.py",
+                        "--limit",
+                        str(args.google_limit),
+                        "--max-cost-usd",
+                        str(args.google_max_cost_usd),
+                        *(["--apply"] if args.apply else []),
+                    ],
+                ),
+            ]
         )
 
     for name, command in steps:

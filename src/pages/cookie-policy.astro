@@ -1,0 +1,37 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { siteConfig } from '../lib/site';
+
+const title = `Cookie Policy | ${siteConfig.name}`;
+const description = `Informativa sui cookie usati da ${siteConfig.name} per funzionalità tecniche, preferenze e, se attivati, strumenti analitici.`;
+---
+<BaseLayout title={title} description={description} canonicalPath="/cookie-policy">
+  <section class="section legal-page">
+    <article class="card legal-card">
+      <h1>Cookie Policy</h1>
+      <p class="legal-updated">Ultimo aggiornamento: 14 agosto 2026</p>
+      <div class="legal-prose">
+        <h2>Cosa sono i cookie</h2>
+        <p>
+          I cookie sono piccoli file salvati dal browser per far funzionare il sito, ricordare preferenze
+          e migliorare l’esperienza di navigazione.
+        </p>
+        <h2>Tipologie utilizzate</h2>
+        <ul>
+          <li><strong>Cookie tecnici:</strong> necessari per navigazione, sicurezza e sessioni (es. area clienti).</li>
+          <li><strong>Preferenze locali:</strong> ad esempio il tema chiaro/scuro salvato nel browser.</li>
+          <li>
+            <strong>Cookie analitici (Google Analytics 4):</strong> misurazione ID
+            <code>G-NDREZNGP80</code>, usati in forma aggregata per pagine viste, percorsi di navigazione,
+            funnel preventivo e interazioni (click CTA, ricerche, invio richiesta). IP anonimizzato dove supportato.
+          </li>
+        </ul>
+        <h2>Gestione</h2>
+        <p>
+          Puoi cancellare o bloccare i cookie dalle impostazioni del browser. L’uso di cookie non tecnici,
+          se introdotti, avverrà secondo le modalità previste dalla normativa.
+        </p>
+      </div>
+    </article>
+  </section>
+</BaseLayout>

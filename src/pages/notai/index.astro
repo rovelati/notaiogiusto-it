@@ -1,152 +1,377 @@
 ---
-import NotaiListingMap from '../../components/NotaiListingMap.astro';
+import NotaiSearchBar from '../../components/NotaiSearchBar.astro';
+import NotaiSearchResults from '../../components/NotaiSearchResults.astro';
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import { euro, titleCase } from '../../lib/format';
+import { titleCase } from '../../lib/format';
 import {
+  SEARCH_RADIUS_STEPS,
   asCoord,
-  averageCenter,
-  distanceKm,
-  formatDistanceKm,
   hasCoords,
+  isPlausibleItalianPoint,
+  locationScopeNote,
+  parseRadiusKm,
 } from '../../lib/geo';
-import { getService, searchNotaries } from '../../lib/notai';
+import {
+  CAPOLUOGHI,
+  canonicalNotaiCityPath,
+  findCapoluogo,
+  listingSeoLinks,
+} from '../../lib/locations';
+import {
+  LISTING_PAGE_SIZE,
+  getService,
+  meaningfulNotaryQuery,
+  resolveServiceFromQuery,
+  searchNotaries,
+  searchNotariesForLocation,
+  searchNotariesNearMe,
+} from '../../lib/notai';
 import { shouldNoindexSearch } from '../../lib/site';
+import { getSitemapProvinces } from '../../lib/sitemap-locations';
 
-const q = Astro.url.searchParams.get('q') || '';
-const comune = Astro.url.searchParams.get('comune') || '';
-const servizio = Astro.url.searchParams.get('servizio') || '';
-const [rawNotaries, service] = await Promise.all([
-  searchNotaries({ q, comune, limit: 24 }),
-  servizio ? getService(servizio) : Promise.resolve(null),
-]);
-const serviceName = service?.plain_language_name || service?.name || '';
-const locationLabel = comune ? titleCase(comune.trim()) : '';
-const title = service
-  ? `${serviceName}${locationLabel ? ` a ${locationLabel}` : ''}: notai e preventivo`
-  : 'Cerca notai | NotaioGiusto.it';
+const qRaw = (Astro.url.searchParams.get('q') || '').trim();
+const comune = (Astro.url.searchParams.get('comune') || '').trim();
+let servizio = (Astro.url.searchParams.get('servizio') || '').trim();
+const radiusKm = parseRadiusKm(Astro.url.searchParams.get('raggio'));
+const page = Math.max(1, Number(Astro.url.searchParams.get('page') || '1') || 1);
+const vicino = Astro.url.searchParams.get('vicino') === '1';
+const nearLat = Number(Astro.url.searchParams.get('lat'));
+const nearLng = Number(Astro.url.searchParams.get('lng'));
+const nearFromIp = Astro.url.searchParams.get('geo') === 'ip';
+const hasNear =
+  vicino && Number.isFinite(nearLat) && Number.isFinite(nearLng)
+    ? { lat: nearLat, lng: nearLng }
+    : null;
 
-const exactCityPoints = rawNotaries
-  .filter((notary) => locationLabel && (notary.comune || '').toLowerCase() === locationLabel.toLowerCase())
-  .filter(hasCoords)
-  .map((notary) => ({ lat: asCoord(notary.lat)!, lng: asCoord(notary.lng)! }));
-const searchCenter =
-  averageCenter(exactCityPoints) ||
-  averageCenter(
-    rawNotaries.filter(hasCoords).map((notary) => ({ lat: asCoord(notary.lat)!, lng: asCoord(notary.lng)! })),
-  );
-
-const notaries = [...rawNotaries]
-  .map((notary) => {
-    const lat = asCoord(notary.lat);
-    const lng = asCoord(notary.lng);
-    const exactCity = Boolean(locationLabel && (notary.comune || '').toLowerCase() === locationLabel.toLowerCase());
-    const km =
-      searchCenter && lat !== null && lng !== null
-        ? distanceKm(searchCenter, { lat, lng })
-        : null;
-    return { ...notary, lat, lng, exactCity, distanceKm: km };
-  })
-  .sort((a, b) => {
-    if (a.exactCity !== b.exactCity) return a.exactCity ? -1 : 1;
-    const bandA = a.distanceKm == null ? 999 : Math.floor(a.distanceKm / 10);
-    const bandB = b.distanceKm == null ? 999 : Math.floor(b.distanceKm / 10);
-    if (bandA !== bandB) return bandA - bandB;
-    if ((a.distanceKm == null) !== (b.distanceKm == null)) return a.distanceKm == null ? 1 : -1;
-    if (a.distanceKm != null && b.distanceKm != null && a.distanceKm !== b.distanceKm) {
-      return a.distanceKm - b.distanceKm;
+// “Cosa cerchi?” = pratica notarile → canonicalizza su ?servizio=
+if (!servizio && qRaw) {
+  const matched = await resolveServiceFromQuery(qRaw);
+  if (matched) {
+    const params = new URLSearchParams();
+    params.set('servizio', matched.slug);
+    if (comune) params.set('comune', comune);
+    if (radiusKm != null) params.set('raggio', String(radiusKm));
+    if (hasNear) {
+      params.set('vicino', '1');
+      params.set('lat', String(hasNear.lat));
+      params.set('lng', String(hasNear.lng));
+      if (nearFromIp) params.set('geo', 'ip');
     }
-    return a.full_name.localeCompare(b.full_name, 'it');
+    if (page > 1) params.set('page', String(page));
+    return Astro.redirect(`/notai?${params}`, 302);
+  }
+}
+
+const q = meaningfulNotaryQuery(qRaw);
+const hasSearch = Boolean(q || comune || servizio || hasNear);
+
+// Fancy URL: /notai?comune=Bergamo -> /notai/bg/bergamo (senza altri filtri utili)
+if (comune && !q && !servizio && !hasNear && radiusKm == null && page <= 1) {
+  const fancy = canonicalNotaiCityPath(comune, findCapoluogo(comune)?.province);
+  if (fancy.startsWith('/notai/') && fancy.split('/').length === 4) {
+    return Astro.redirect(fancy, 301);
+  }
+}
+
+const [service, locationResult, nearResult, nameResults] = await Promise.all([
+  servizio ? getService(servizio) : Promise.resolve(null),
+  hasSearch && comune && !hasNear
+    ? searchNotariesForLocation({ comune, limit: LISTING_PAGE_SIZE, page, radiusKm })
+    : Promise.resolve(null),
+  hasNear
+    ? searchNotariesNearMe({
+        lat: hasNear.lat,
+        lng: hasNear.lng,
+        radiusKm: radiusKm ?? 30,
+        limit: LISTING_PAGE_SIZE,
+        page,
+      })
+    : Promise.resolve(null),
+  hasSearch && !comune && !hasNear && q
+    ? searchNotaries({ q, serviceId: undefined, limit: 36 })
+    : Promise.resolve([]),
+]);
+
+if (service?.requested_slug && service.requested_slug !== service.slug) {
+  const params = new URLSearchParams(Astro.url.searchParams);
+  params.set('servizio', service.slug);
+  return Astro.redirect(`/notai?${params}`, 301);
+}
+if (service?.requested_is_searchable === false) {
+  const params = new URLSearchParams(Astro.url.searchParams);
+  params.delete('servizio');
+  return Astro.redirect(`/notai${params.size ? `?${params}` : ''}`, 301);
+}
+
+const serviceName = service?.plain_language_name || service?.name || '';
+const locationLabel = hasNear ? 'Vicino a te' : comune ? titleCase(comune.replace(/-/g, ' ')) : '';
+const title = hasNear
+  ? 'Notai vicino a te | NotaioGiusto.it'
+  : hasSearch
+    ? `${serviceName || (q ? `Notai per “${q}”` : 'Notai')}${comune ? ` a ${titleCase(comune.replace(/-/g, ' '))}` : ''} | NotaioGiusto.it`
+    : 'Cerca notai e studi notarili | NotaioGiusto.it';
+
+const pagedSource = nearResult || locationResult;
+let rawNotaries = pagedSource?.notaries || nameResults || [];
+let nameFilterNote = '';
+// Filtra per cognome solo se q NON è un servizio (già gestito sopra)
+if (hasSearch && comune && q && !servizio && locationResult) {
+  const needle = q.toLowerCase();
+  const filtered = rawNotaries.filter((notary) => {
+    const hay = `${notary.full_name} ${notary.address || ''} ${notary.comune || ''}`.toLowerCase();
+    return hay.includes(needle);
   });
+  if (filtered.length) {
+    rawNotaries = filtered;
+  } else if (locationResult.notaries.length) {
+    nameFilterNote = `Nessuno studio corrisponde a “${q}”: mostriamo i notai a ${locationLabel}.`;
+  } else {
+    rawNotaries = filtered;
+  }
+}
+if (hasSearch && servizio && !comune && !q && !hasNear) {
+  rawNotaries = await searchNotaries({
+    q: serviceName,
+    serviceId: service?.id,
+    serviceSlug: service?.slug,
+    limit: 36,
+  });
+}
 
-const exactCityCount = notaries.filter((notary) => notary.exactCity).length;
-const withCoordsCount = notaries.filter((notary) => notary.lat != null && notary.lng != null).length;
-const hasFilters = Boolean(q || comune || servizio);
-const noindex = hasFilters || shouldNoindexSearch(Astro.url);
-const preventivoBase = `/preventivo?step=${servizio ? '2' : '1'}${servizio ? `&servizio=${encodeURIComponent(servizio)}` : ''}${comune ? `&comune=${encodeURIComponent(comune)}` : ''}`;
+const searchCenter = pagedSource?.center || null;
+const activeRadiusKm = pagedSource?.radiusKm ?? radiusKm;
+const currentPage = pagedSource?.page ?? 1;
+const totalPages = pagedSource?.totalPages ?? 1;
+const total = pagedSource?.total ?? rawNotaries.length;
 
+const notaries = rawNotaries.map((notary) => {
+  const lat = asCoord(notary.lat);
+  const lng = asCoord(notary.lng);
+  const exactCity = Boolean(
+    comune && (notary.comune || '').toLowerCase() === titleCase(comune.replace(/-/g, ' ')).toLowerCase(),
+  );
+  const fromSql =
+    typeof (notary as { distance_km?: number | null }).distance_km === 'number'
+      ? (notary as { distance_km?: number | null }).distance_km
+      : null;
+  return {
+    ...notary,
+    lat,
+    lng,
+    exactCity,
+    distanceKm: fromSql,
+    rating_avg: (notary as { rating_avg?: number | null }).rating_avg ?? null,
+    review_count: (notary as { review_count?: number | null }).review_count ?? null,
+    services_count: (notary as { services_count?: number | null }).services_count ?? null,
+  };
+});
+
+const exactCityCount = pagedSource?.exactCityCount ?? notaries.filter((notary) => notary.exactCity).length;
+const withCoordsCount = notaries.filter(
+  (notary) => hasCoords(notary) && isPlausibleItalianPoint({ lat: notary.lat!, lng: notary.lng! }),
+).length;
+const scopeNote =
+  nameFilterNote ||
+  (hasNear
+    ? nearFromIp
+      ? `Ordine per rilevanza vicino alla posizione stimata dalla rete (meno precisa del GPS).`
+      : `Ordine per rilevanza vicino alla tua posizione (recensioni, servizi dichiarati, distanza).`
+    : locationScopeNote({
+        locationLabel: comune ? titleCase(comune.replace(/-/g, ' ')) : '',
+        scope: locationResult?.scope,
+        exactCityCount,
+        radiusKm: activeRadiusKm,
+      }));
+const noindex = hasSearch || shouldNoindexSearch(Astro.url) || Boolean(hasNear) || currentPage > 1;
+const preventivoBase = `/preventivo?step=${service ? '2' : '1'}${service ? `&servizio=${encodeURIComponent(service.slug)}` : ''}${comune ? `&comune=${encodeURIComponent(comune)}` : ''}`;
 const mapPoints = notaries
-  .filter((notary) => notary.lat != null && notary.lng != null)
-  .map((notary, index) => ({
+  .map((notary, index) => ({ notary, rank: (currentPage - 1) * LISTING_PAGE_SIZE + index + 1 }))
+  .filter(
+    ({ notary }) =>
+      hasCoords(notary) && isPlausibleItalianPoint({ lat: notary.lat!, lng: notary.lng! }),
+  )
+  .map(({ notary, rank }) => ({
     id: notary.id,
     name: titleCase(notary.full_name),
     slug: notary.source_slug,
     address: [notary.address, notary.comune ? titleCase(notary.comune) : null].filter(Boolean).join(' · '),
     lat: notary.lat as number,
     lng: notary.lng as number,
-    rank: notaries.findIndex((item) => item.id === notary.id) + 1,
+    rank,
     exactCity: notary.exactCity,
   }));
+const cityShortcuts = CAPOLUOGHI.slice(0, 12);
+const provinceShortcuts = (await getSitemapProvinces(2)).slice(0, 16);
+
+const paginationParams = new URLSearchParams();
+if (q) paginationParams.set('q', q);
+if (comune && !hasNear) paginationParams.set('comune', comune);
+if (servizio) paginationParams.set('servizio', servizio);
+if (radiusKm != null) paginationParams.set('raggio', String(radiusKm));
+if (hasNear) {
+  paginationParams.set('vicino', '1');
+  paginationParams.set('lat', String(hasNear.lat));
+  paginationParams.set('lng', String(hasNear.lng));
+  if (nearFromIp) paginationParams.set('geo', 'ip');
+}
+const paginationBasePath = `/notai${paginationParams.toString() ? `?${paginationParams}` : ''}`;
+const showRadius = Boolean((comune || hasNear) && (searchCenter || activeRadiusKm != null));
+const placeLabel = hasNear ? 'la tua zona' : locationLabel || 'zona';
+const heroCountNote = service && total > 0
+  ? `${total} ${total === 1 ? 'notaio' : 'notai'} vicino a ${placeLabel} per ${serviceName}`
+  : hasNear
+    ? `${total} studi ordinati vicino a te · pagina ${currentPage}`
+    : locationLabel &&
+        activeRadiusKm != null &&
+        (locationResult?.scope === 'raggio' || exactCityCount === 0)
+      ? `${total} studi entro ${activeRadiusKm} km da ${locationLabel}`
+      : `${total} ${total === 1 ? 'studio trovato' : 'studi trovati'}${locationLabel ? ` vicino a ${locationLabel}` : ''}`;
+
+const searchedLabel = (() => {
+  const what = serviceName || (q ? `“${q}”` : '');
+  if (hasNear) return what ? `Hai cercato ${what} vicino a te` : 'Hai cercato notai vicino a te';
+  if (what && locationLabel) return `Hai cercato ${what} a ${locationLabel}`;
+  if (what) return `Hai cercato ${what}`;
+  if (locationLabel) return `Hai cercato notai a ${locationLabel}`;
+  return 'Hai cercato notai';
+})();
+const showSearchForm = !hasSearch || total === 0;
+
+const serviceIntent =
+  service && total > 0
+    ? {
+        title: `${total} ${total === 1 ? 'notaio' : 'notai'} in zona${locationLabel ? ` ${locationLabel}` : ''}`,
+        body:
+          total === 1
+            ? `Probabilmente offre «${serviceName}». Contattalo per un preventivo.`
+            : `Probabilmente offrono «${serviceName}». Contattali per un preventivo.`,
+        ctaHref: preventivoBase,
+        ctaLabel: 'Richiedi preventivo',
+        guideHref: `/quanto-costa/${service.slug}`,
+      }
+    : null;
+
+const seoBundle =
+  comune && !hasNear
+    ? listingSeoLinks({
+        comune,
+        province: findCapoluogo(comune)?.province,
+        limitCities: 6,
+        limitServices: 6,
+      })
+    : { cityLinks: [], serviceLinks: [] };
 ---
 <BaseLayout title={title} noindex={noindex} canonicalPath="/notai">
-  <section class="search-results-hero">
-    <span class="eyebrow">Ricerca notai</span>
-    <h1>
-      {service
-        ? `${serviceName}${locationLabel ? ` a ${locationLabel}` : ''}`
-        : 'Cerca un notaio'}
-    </h1>
-    <p class="lead">
-      {service
-        ? `Trova studi notarili nella zona, verifica i contatti e invia una richiesta di preventivo per ${serviceName.toLowerCase()}.`
-        : 'Cerca per nome, città o zona e apri la scheda del notaio per contatti, mappa e preventivo.'}
-    </p>
-    <div class="result-context">
-      {service && <span><strong>{euro(service.price_avg_cents)}</strong> media indicativa nazionale</span>}
-      <span><strong>{notaries.length}</strong> notai trovati</span>
-      {locationLabel && <span><strong>{exactCityCount}</strong> nel comune cercato</span>}
-      <span><strong>{withCoordsCount}</strong> in mappa</span>
-      {service && <a href={`/quanto-costa/${service.slug}`}>Guida alla pratica</a>}
+  <section class={`home-hero search-hero${hasSearch && !showSearchForm ? ' search-hero--results' : ''}`}>
+    <div class="home-hero__glow" aria-hidden="true"></div>
+    <div class="home-hero__inner home-hero__inner--wide">
+      <div class="home-hero__intro">
+        <p class="search-hero__eyebrow">Ricerca notai</p>
+        <h1>
+          {hasSearch
+            ? searchedLabel
+            : 'Cerca un notaio'}
+        </h1>
+        <p class="home-hero__tagline search-hero__tagline">
+          {hasSearch
+            ? heroCountNote
+            : 'Cerca per nome, pratica o città, poi apri la scheda o richiedi un preventivo.'}
+        </p>
+        {hasSearch && !showSearchForm && (
+          <p class="home-hero__hint home-hero__hint--actions">
+            <a href="/notai">Modifica ricerca</a>
+            {service ? <> · <a href={`/quanto-costa/${service.slug}`}>Guida alla pratica</a></> : null}
+          </p>
+        )}
+      </div>
+      {showSearchForm && (
+        <div class="home-hero__search">
+          <NotaiSearchBar variant="hero" q={q || qRaw} comune={comune} servizio={servizio} />
+          {(q || locationLabel || serviceName || hasNear) && total === 0 && (
+            <p class="home-hero__hint">
+              {[
+                serviceName ? `Servizio: ${serviceName}` : q ? `Cosa: ${q}` : null,
+                hasNear ? 'Vicino a te' : comune ? `Dove: ${titleCase(comune.replace(/-/g, ' '))}` : null,
+                activeRadiusKm != null ? `Raggio: ${activeRadiusKm} km` : null,
+              ].filter(Boolean).join(' · ')}
+            </p>
+          )}
+        </div>
+      )}
     </div>
   </section>
 
-  <section class="section">
-    <form class="search-panel compact-search" action="/notai" method="get">
-      <div class="form-grid">
-        <label>Nome o zona <input name="q" value={q} placeholder="Es. Rossi, Milano" /></label>
-        <label>Comune <input name="comune" value={comune} placeholder="Es. Milano" /></label>
-        <input type="hidden" name="servizio" value={servizio} />
-        <button class="btn" type="submit">Cerca</button>
+  {!hasSearch ? (
+    <section class="section">
+      <div class="section-heading">
+        <h2>Parti da una città</h2>
+        <p>Scegli un capoluogo o usa la ricerca sopra: senza località non mostriamo elenchi sparsi in tutta Italia.</p>
       </div>
-    </form>
-
-    <div class="listing-layout">
-      <div class="list result-list">
-        {notaries.map((notary, index) => {
-          const distanceLabel = formatDistanceKm(notary.distanceKm);
-          return (
-            <article class="card notary-result-row" id={`notary-${notary.id}`}>
-              <div>
-                <div class="result-title-row">
-                  <span class="result-rank">{index + 1}</span>
-                  <h3>{titleCase(notary.full_name)}</h3>
-                </div>
-                <address>
-                  {notary.address || 'Indirizzo non disponibile'}
-                  {notary.comune && ` · ${titleCase(notary.comune)}`}
-                </address>
-                <div class="result-badges">
-                  {notary.is_official_notariato && <span>Fonte ufficiale Notariato</span>}
-                  {notary.exactCity && <span>Nel comune cercato</span>}
-                  {distanceLabel && <span class="geo-signal">A circa {distanceLabel}</span>}
-                  {notary.lat != null && notary.lng != null
-                    ? <span class="geo-signal">In mappa</span>
-                    : <span>Coordinate da completare</span>}
-                  {notary.district && <span>Distretto {notary.district}</span>}
-                  {service && <span>{serviceName}: disponibilità da confermare</span>}
-                </div>
-              </div>
-              <div class="actions">
-                {notary.phone && <a class="btn navy" href={`tel:${notary.phone}`}>Chiama</a>}
-                <a class="btn blue" href={`${preventivoBase}&notary=${notary.id}`}>Preventivo</a>
-                <a class="btn secondary" href={`/notai/${notary.source_slug}`}>Scheda</a>
-              </div>
-            </article>
-          );
-        })}
-        {!notaries.length && <div class="notice">Nessun notaio trovato con questi filtri.</div>}
+      <div class="listing-toolbar" style="margin-bottom:18px">
+        <button type="button" class="near-me-btn" data-near-me data-near-me-base="/notai">
+          Vicino a me
+        </button>
       </div>
-
-      <NotaiListingMap points={mapPoints} locationLabel={locationLabel} />
-    </div>
-  </section>
+      <div class="city-chip-grid">
+        {cityShortcuts.map((city) => (
+          <a class="city-chip" href={canonicalNotaiCityPath(city.name, city.province)}>
+            {city.name}
+            <span>{city.province}</span>
+          </a>
+        ))}
+      </div>
+      <div class="section-heading" style="margin-top:28px">
+        <h2>Oppure per provincia</h2>
+        <p>Hub provinciali con comuni e link ai preventivi locali.</p>
+      </div>
+      <div class="city-chip-grid">
+        {provinceShortcuts.map((prov) => (
+          <a class="city-chip" href={prov.path}>
+            Provincia di {prov.name}
+            <span>{prov.code} · {prov.cityCount} comuni</span>
+          </a>
+        ))}
+      </div>
+      <div class="notice" style="margin-top:22px">
+        Suggerimento: digita un cognome o una pratica (es. «copia conforme») in “Cosa cerchi?”, oppure una città in “Dove?”.
+      </div>
+    </section>
+  ) : (
+    <NotaiSearchResults
+      notaries={notaries}
+      locationLabel={hasNear ? '' : comune ? titleCase(comune.replace(/-/g, ' ')) : ''}
+      exactCityCount={exactCityCount}
+      withCoordsCount={withCoordsCount}
+      scopeNote={scopeNote}
+      serviceName={serviceName}
+      serviceSlug={service?.slug || ''}
+      preventivoBase={preventivoBase}
+      mapPoints={mapPoints}
+      searchOrigin={
+        searchCenter
+          ? {
+              lat: searchCenter.lat,
+              lng: searchCenter.lng,
+              label: hasNear
+                ? nearFromIp
+                  ? 'Posizione stimata (rete)'
+                  : 'La tua posizione'
+                : locationLabel || titleCase(comune.replace(/-/g, ' ')),
+            }
+          : null
+      }
+      radiusKm={showRadius ? activeRadiusKm : null}
+      radiusOptions={[...SEARCH_RADIUS_STEPS]}
+      radiusBasePath={showRadius ? paginationBasePath : ''}
+      nearbyCityLinks={seoBundle.cityLinks}
+      serviceSeoLinks={seoBundle.serviceLinks}
+      page={currentPage}
+      totalPages={totalPages}
+      total={total}
+      pageSize={LISTING_PAGE_SIZE}
+      paginationBasePath={paginationBasePath}
+      nearMeActive={Boolean(hasNear)}
+      serviceIntent={serviceIntent}
+    />
+  )}
 </BaseLayout>

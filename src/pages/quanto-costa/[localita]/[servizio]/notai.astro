@@ -1,49 +1,248 @@
 ---
 import BaseLayout from '../../../../layouts/BaseLayout.astro';
-import { euro, locationToLabel } from '../../../../lib/format';
-import { getService, searchNotaries } from '../../../../lib/notai';
+import LegalDisclaimer from '../../../../components/LegalDisclaimer.astro';
+import { euro, titleCase } from '../../../../lib/format';
+import { formatDistanceKm, locationScopeNote } from '../../../../lib/geo';
+import { parseLocationSlug } from '../../../../lib/locations';
+import { getService, MAX_QUOTE_NOTARIES, searchNotariesForLocation } from '../../../../lib/notai';
+import { absoluteUrl, shouldNoindexListingUrl } from '../../../../lib/site';
+import { canonicalNotaiProvincePath } from '../../../../lib/sitemap-locations';
 
 const service = await getService(Astro.params.servizio || '');
-const location = locationToLabel(Astro.params.localita || '');
-const comune = (Astro.params.localita || '').split('-').slice(0, -1).join(' ');
-const notaries = await searchNotaries({ comune, limit: 12 });
 if (!service) return Astro.redirect('/quanto-costa');
+if (service.requested_slug && service.requested_slug !== service.slug) {
+  return Astro.redirect(
+    `/quanto-costa/${Astro.params.localita}/${service.slug}/notai`,
+    301,
+  );
+}
+if (service.requested_is_searchable === false) return Astro.redirect('/quanto-costa', 301);
+
+const location = parseLocationSlug(Astro.params.localita || '');
+const serviceName = service.plain_language_name || service.name;
+const { notaries, scope, exactCityCount, radiusKm } = await searchNotariesForLocation({
+  comune: location.comune,
+  limit: 36,
+  minLocal: 8,
+});
+
+const noindex = shouldNoindexListingUrl(Astro.url);
+const provinceHref = location.province
+  ? canonicalNotaiProvincePath(location.province)
+  : null;
+const scopeNote = locationScopeNote({
+  locationLabel: location.comune,
+  scope,
+  exactCityCount,
+  radiusKm,
+});
+const scopeLabel =
+  scope === 'raggio' && radiusKm != null
+    ? `Notai vicino a ${location.comune} (entro ${radiusKm} km)`
+    : scope === 'distretto'
+      ? `Notai a ${location.comune} e nel distretto notarile di riferimento`
+      : `Notai a ${location.comune}`;
+
+const scopeIntro =
+  scope === 'raggio' && radiusKm != null
+    ? exactCityCount < 1
+      ? `Nessun studio a ${location.comune}: elenco esteso entro ${radiusKm} km.`
+      : `Oltre ai ${exactCityCount} studi a ${location.comune}, mostriamo notai entro ${radiusKm} km.`
+    : scope === 'distretto'
+      ? `Oltre ai ${exactCityCount} studi a ${location.comune}, mostriamo notai dello stesso distretto notarile (fonte Notariato), utili per un preventivo in provincia.`
+      : `Elenco degli studi con sede a ${location.comune}.`;
+const title = `${serviceName} a ${location.comune}: notai e preventivo`;
+const description = `Preventivo per ${serviceName.toLowerCase()} a ${location.label}. ${notaries.length} studi nella zona, con richiesta strutturata.`;
+const canonicalPath = `/quanto-costa/${location.slug}/${service.slug}/notai`;
+const serviceGuidePath = `/quanto-costa/${service.slug}`;
+const ogImage = service.image_url || '/brand/og-default.jpg';
+const stickyIds = notaries.slice(0, MAX_QUOTE_NOTARIES).map((notary) => notary.id);
+const preventivoHref = `/preventivo?step=2&servizio=${encodeURIComponent(service.slug)}&comune=${encodeURIComponent(location.comune)}${
+  stickyIds.length ? `&notary=${encodeURIComponent(stickyIds.join(','))}` : ''
+}`;
+const serviceJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Service',
+  '@id': `${absoluteUrl(canonicalPath)}#service`,
+  name: `${serviceName} a ${location.comune}`,
+  serviceType: serviceName,
+  description,
+  url: absoluteUrl(canonicalPath),
+  image: absoluteUrl(ogImage),
+  areaServed: {
+    '@type': 'City',
+    name: location.comune,
+    containedInPlace: location.province
+      ? {
+          '@type': 'AdministrativeArea',
+          name: location.province,
+        }
+      : undefined,
+  },
+  offers: {
+    '@type': 'AggregateOffer',
+    priceCurrency: 'EUR',
+    lowPrice: service.price_min_cents ? (service.price_min_cents / 100).toFixed(0) : undefined,
+    highPrice: service.price_max_cents ? (service.price_max_cents / 100).toFixed(0) : undefined,
+    offerCount: notaries.length,
+    url: absoluteUrl(canonicalPath),
+  },
+};
+const breadcrumbJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: absoluteUrl('/') },
+    { '@type': 'ListItem', position: 2, name: 'Quanto costa', item: absoluteUrl('/quanto-costa') },
+    { '@type': 'ListItem', position: 3, name: serviceName, item: absoluteUrl(serviceGuidePath) },
+    { '@type': 'ListItem', position: 4, name: `${serviceName} a ${location.comune}`, item: absoluteUrl(canonicalPath) },
+  ],
+};
+const notariesJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'ItemList',
+  '@id': `${absoluteUrl(canonicalPath)}#notai`,
+  name: `Notai per ${serviceName.toLowerCase()} a ${location.comune}`,
+  numberOfItems: notaries.length,
+  itemListElement: notaries.map((notary, index) => ({
+    '@type': 'ListItem',
+    position: index + 1,
+    item: {
+      '@type': 'Notary',
+      '@id': `${absoluteUrl(`/notai/${notary.source_slug}`)}#notary`,
+      name: titleCase(notary.full_name),
+      url: absoluteUrl(`/notai/${notary.source_slug}`),
+      telephone: notary.phone || undefined,
+      address: notary.address
+        ? {
+            '@type': 'PostalAddress',
+            streetAddress: notary.address,
+            postalCode: notary.cap || undefined,
+            addressLocality: notary.comune ? titleCase(notary.comune) : location.comune,
+            addressCountry: 'IT',
+          }
+        : undefined,
+    },
+  })),
+};
 ---
-<BaseLayout title={`${service.plain_language_name || service.name} a ${location}: notai e preventivi`}>
-  <section class="section">
+<BaseLayout
+  title={title}
+  description={description}
+  canonicalPath={canonicalPath}
+  noindex={noindex}
+  ogImage={ogImage}
+  ogImageAlt={`${serviceName} a ${location.comune} — notai e preventivo`}
+  jsonLd={[serviceJsonLd, breadcrumbJsonLd, notariesJsonLd]}
+>
+  <section class="search-results-hero">
     <span class="eyebrow">Preventivo notarile locale</span>
-    <h1>{service.plain_language_name || service.name} a {location}</h1>
-    <p class="lead">Range nazionale indicativo: <strong>{euro(service.price_min_cents)} - {euro(service.price_max_cents)}</strong>. Qui trovi notai in zona e puoi inviare una richiesta strutturata.</p>
+    <h1>{serviceName} a {location.comune}</h1>
+    <p class="lead">
+      Range nazionale indicativo: <strong>{euro(service.price_min_cents)} - {euro(service.price_max_cents)}</strong>.
+      Qui trovi studi nella zona e puoi avviare una richiesta di preventivo per questa pratica.
+    </p>
+    <div class="result-context">
+      <span><strong>{notaries.length}</strong> studi in elenco</span>
+      <span><strong>{exactCityCount}</strong> nel comune</span>
+      {scope === 'distretto' && <span>Ampliato al distretto notarile</span>}
+      {scope === 'raggio' && radiusKm != null && <span>Entro {radiusKm} km</span>}
+      {location.province && <span>Provincia {location.province}</span>}
+      {provinceHref && <a href={provinceHref}>Notai in provincia</a>}
+      <a href={`/quanto-costa/${service.slug}`}>Guida al costo</a>
+    </div>
+    {scopeNote && <p class="helper-text scope-note">{scopeNote}</p>}
+  </section>
+
+  <section class="section">
     <div class="two-col">
-      <div class="list">
-        {notaries.map((notary) => (
-          <article class="card notary-row">
-            <div>
-              <h3>{notary.full_name}</h3>
-              <address>{notary.address}, {notary.comune}</address>
-              <div class="meta">
-                {notary.email && <span class="pill green">Email disponibile</span>}
-                {notary.is_official_notariato && <span class="pill">Fonte Notariato</span>}
-              </div>
+      <div>
+        <div class="section-heading">
+          <h2>{scopeLabel}</h2>
+          <p>{scopeIntro}</p>
+        </div>
+        <div class="list result-list">
+          {notaries.map((notary, index) => {
+            const inCity = (notary.comune || '').toLowerCase() === location.comune.toLowerCase();
+            const distanceLabel =
+              !inCity && typeof (notary as { distance_km?: number | null }).distance_km === 'number'
+                ? formatDistanceKm((notary as { distance_km?: number | null }).distance_km)
+                : null;
+            return (
+              <article class="card notary-result-row" id={`notary-${notary.id}`}>
+                <div>
+                  <div class="result-title-row">
+                    <span class="result-rank">{index + 1}</span>
+                    <h3>{titleCase(notary.full_name)}</h3>
+                    {notary.is_official_notariato ? (
+                      <span class="official-mark" title="Fonte ufficiale Consiglio Nazionale del Notariato">Ufficiale</span>
+                    ) : null}
+                  </div>
+                  <address>
+                    {notary.address || 'Indirizzo non disponibile'}
+                    {notary.comune && ` · ${titleCase(notary.comune)}`}
+                  </address>
+                  {(distanceLabel || (!inCity && notary.district)) && (
+                    <div class="result-meta">
+                      {distanceLabel ? <span>~{distanceLabel}</span> : null}
+                      {!inCity && !distanceLabel ? <span>Zona</span> : null}
+                    </div>
+                  )}
+                </div>
+                <div class="actions">
+                  {notary.phone && <a class="btn navy" href={`tel:${notary.phone}`}>Chiama</a>}
+                  <a
+                    class="btn blue"
+                    rel="nofollow"
+                    href={`${preventivoHref}&notary=${notary.id}`}
+                  >
+                    Preventivo
+                  </a>
+                  <a class="btn secondary" href={`/notai/${notary.source_slug}`}>Scheda</a>
+                </div>
+              </article>
+            );
+          })}
+          {!notaries.length && (
+            <div class="notice">
+              Nessun notaio trovato per questa località. Prova la ricerca nazionale o richiedi comunque un preventivo.
             </div>
-            <div class="actions">
-              {notary.phone && <a class="btn" href={`tel:${notary.phone}`}>Chiama</a>}
-              <a class="btn secondary" href={`/notai/${notary.source_slug}`}>Scheda</a>
-            </div>
-          </article>
-        ))}
+          )}
+        </div>
       </div>
-      <form class="quote-box" action="/api/quote-request" method="post">
-        <h2>Richiedi preventivo per {service.plain_language_name || service.name}</h2>
-        <input type="hidden" name="service_slug" value={service.slug} />
-        <input type="hidden" name="service_name" value={service.plain_language_name || service.name} />
-        <input type="hidden" name="comune" value={comune} />
-        <label>Email obbligatoria <input required type="email" name="email" placeholder="nome@email.it" /></label>
-        <label>Nome <input name="name" /></label>
-        <label>Telefono <input name="phone" /></label>
-        <label>Dettagli <textarea name="message" placeholder="Aggiungi importo, tempistiche, documenti disponibili..."></textarea></label>
-        <button class="btn blue" type="submit">Invia a notai disponibili</button>
-      </form>
+
+      <aside class="side-stack">
+        <div class="quote-box">
+          <h2>Richiedi preventivo per {serviceName.toLowerCase()} a {location.comune}</h2>
+          <p>
+            Funnel guidato: dettagli della pratica, selezione fino a {MAX_QUOTE_NOTARIES} notai e riepilogo prima dell’invio.
+          </p>
+          <a class="btn blue" rel="nofollow" href={preventivoHref}>Inizia preventivo</a>
+          <a class="btn secondary" rel="nofollow" href={`/notai?comune=${encodeURIComponent(location.comune)}&servizio=${encodeURIComponent(service.slug)}`}>
+            Apri ricerca notai
+          </a>
+          <LegalDisclaimer variant="compact" />
+        </div>
+        <div class="card">
+          <h3>Range nazionale</h3>
+          <div class="price">{euro(service.price_min_cents)} - {euro(service.price_max_cents)}</div>
+          <p class="muted-text">Media rilevata: {euro(service.price_avg_cents)}</p>
+        </div>
+      </aside>
     </div>
   </section>
+
+  {notaries.length > 0 && (
+    <div class="listing-sticky-bar" role="region" aria-label="Azione rapida preventivo">
+      <div class="listing-sticky-bar__inner">
+        <p class="listing-sticky-bar__copy">
+          <strong>{serviceName}</strong>
+          <span> · {location.comune} · {notaries.length} {notaries.length === 1 ? 'notaio' : 'notai'}</span>
+        </p>
+        <a class="btn blue listing-sticky-bar__cta" rel="nofollow" href={preventivoHref}>
+          Richiedi preventivo
+        </a>
+      </div>
+    </div>
+  )}
 </BaseLayout>

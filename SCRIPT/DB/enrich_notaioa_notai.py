@@ -100,11 +100,15 @@ def db_connect():
 def fetch_html(url: str, timeout: int = 40) -> str:
     response = SESSION.get(url, timeout=timeout)
     response.raise_for_status()
+    try:
+        text = response.content.decode("utf-8")
+    except UnicodeDecodeError:
+        text = response.text
     content_type = response.headers.get("content-type", "")
     min_len = 500 if "xml" in content_type or url.endswith(".xml") or "sitemap" in url else 5000
-    if len(response.text) < min_len:
-        raise RuntimeError(f"HTML troppo corto per {url}: {len(response.text)} byte")
-    return response.text
+    if len(text) < min_len:
+        raise RuntimeError(f"HTML troppo corto per {url}: {len(text)} byte")
+    return text
 
 
 def norm(value: str | None) -> str:
@@ -310,21 +314,20 @@ def score_match(notary: dict, record: NotaioaRecord) -> tuple[int, list[str]]:
 def upsert_service(cur, slug: str, name: str, category: str, description: str, synonyms: list[str] | None = None):
     cur.execute(
         """
-        insert into notai.services_taxonomy (slug, name, category, description, synonyms)
-        values (%s, %s, %s, %s, %s)
-        on conflict (slug) do update set
-            name = excluded.name,
-            category = excluded.category,
-            description = coalesce(nullif(excluded.description, ''), notai.services_taxonomy.description),
+        update notai.services_taxonomy
+        set description = coalesce(nullif(%s, ''), description),
             synonyms = case
-                when notai.services_taxonomy.synonyms = '{}'::text[] then excluded.synonyms
-                else notai.services_taxonomy.synonyms
-            end
-        returning id
+                when synonyms = '{}'::text[] then %s
+                else synonyms
+            end,
+            updated_at = now()
+        where slug = %s
+        returning coalesce(canonical_service_id, id)
         """,
-        (slug, name, category, description, synonyms or [name]),
+        (description, synonyms or [name], slug),
     )
-    return cur.fetchone()[0]
+    row = cur.fetchone()
+    return row[0] if row else None
 
 
 def import_services(conn, apply: bool) -> list[dict]:
@@ -386,6 +389,8 @@ def save_enrichment(
                     service.get("evidence", ""),
                     [service["name"], service.get("profile_slug", "")],
                 )
+                if not service_id:
+                    continue
                 cur.execute(
                     """
                     insert into notai.notary_services (notary_id, service_id, source, confidence, evidence)

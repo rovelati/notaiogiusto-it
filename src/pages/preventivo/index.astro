@@ -1,8 +1,17 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import LegalDisclaimer from '../../components/LegalDisclaimer.astro';
+import { createMathChallenge } from '../../lib/antispam';
 import { getClientEmail } from '../../lib/client-auth';
 import { euro, titleCase } from '../../lib/format';
-import { getAllServices, getNotariesByIds, getService, searchNotaries } from '../../lib/notai';
+import {
+  getAllServices,
+  getNotariesByIds,
+  getService,
+  MAX_QUOTE_NOTARIES,
+  searchNotaries,
+  searchNotariesForLocation,
+} from '../../lib/notai';
 import {
   cadastralSummary,
   getPropertiesByIdsForEmail,
@@ -25,17 +34,36 @@ const documentsReady = (params.get('documents_ready') || '').trim();
 const selectedIds = [...new Set([
   ...params.getAll('notary_ids').map((value) => value.trim()),
   ...(params.get('notary') || '').split(',').map((value) => value.trim()),
-].filter(Boolean))].slice(0, 3);
+].filter(Boolean))].slice(0, MAX_QUOTE_NOTARIES);
 const selectedPropertyIds = [...new Set(params.getAll('property_ids').map((value) => value.trim()).filter(Boolean))].slice(0, 10);
 const clientEmail = getClientEmail(Astro.cookies);
 const fascicoloEmail = (email || clientEmail || '').trim().toLowerCase();
 
-const [services, service, selectedNotaries, candidates, shareableProperties, selectedProperties] = await Promise.all([
+const service = serviceSlug ? await getService(serviceSlug) : null;
+if (service?.requested_slug && service.requested_slug !== service.slug) {
+  const canonicalParams = new URLSearchParams(params);
+  canonicalParams.set('servizio', service.slug);
+  return Astro.redirect(`/preventivo?${canonicalParams}`, 301);
+}
+if (service?.requested_is_searchable === false) {
+  const canonicalParams = new URLSearchParams(params);
+  canonicalParams.delete('servizio');
+  canonicalParams.set('step', '1');
+  return Astro.redirect(`/preventivo?${canonicalParams}`, 301);
+}
+const [services, selectedNotaries, locationCandidates, declaredCandidates, shareableProperties, selectedProperties] = await Promise.all([
   getAllServices(),
-  serviceSlug ? getService(serviceSlug) : Promise.resolve(null),
   getNotariesByIds(selectedIds),
   step >= 3 && comune
-    ? searchNotaries({ comune, limit: 18 })
+    ? searchNotariesForLocation({ comune, limit: 24, minLocal: 1 }).then((pack) => pack.notaries)
+    : Promise.resolve([]),
+  step >= 3 && comune && service
+    ? searchNotaries({
+        comune,
+        serviceId: service.id,
+        serviceSlug: service.slug,
+        limit: 48,
+      })
     : Promise.resolve([]),
   fascicoloEmail ? listShareableClientProperties(fascicoloEmail) : Promise.resolve([]),
   fascicoloEmail && selectedPropertyIds.length
@@ -43,10 +71,12 @@ const [services, service, selectedNotaries, candidates, shareableProperties, sel
     : Promise.resolve([]),
 ]);
 
+const candidates = locationCandidates.length ? locationCandidates : declaredCandidates;
 const serviceName = service?.plain_language_name || service?.name || '';
 const intake = service ? getServiceIntake(service) : null;
 const intakeValues = intake ? intakeFromSearchParams(params, intake.fields) : {};
 const locationLabel = comune ? titleCase(comune) : '';
+const antispam = step === 4 ? createMathChallenge() : null;
 const steps = [
   { n: 1, label: 'Servizio' },
   { n: 2, label: 'Pratica' },
@@ -59,12 +89,70 @@ const servicesByCategory = services.reduce<Record<string, typeof services>>((acc
   return acc;
 }, {});
 
-const candidateMap = new Map<string, (typeof candidates)[number]>();
-for (const notary of [...selectedNotaries, ...candidates]) {
+const candidateMap = new Map<string, (typeof candidates)[number] & {
+  declared_service?: boolean;
+  declared_match?: string | null;
+  service_match_source?: string | null;
+  distance_km?: number | null;
+}>();
+for (const notary of candidates) {
   candidateMap.set(notary.id, notary);
 }
-const notaryChoices = [...candidateMap.values()];
+for (const notary of declaredCandidates) {
+  const existing = candidateMap.get(notary.id);
+  if (!existing && locationCandidates.length) continue;
+  candidateMap.set(
+    notary.id,
+    existing
+      ? {
+          ...existing,
+          declared_service: Boolean(existing.declared_service || notary.declared_service),
+          declared_match: existing.declared_match || notary.declared_match || null,
+          service_match_source: existing.service_match_source || notary.service_match_source || null,
+        }
+      : notary,
+  );
+}
+for (const notary of selectedNotaries) {
+  const existing = candidateMap.get(notary.id);
+  candidateMap.set(
+    notary.id,
+    existing
+      ? {
+          ...existing,
+          ...notary,
+          declared_service: Boolean(existing.declared_service || notary.declared_service),
+          declared_match: existing.declared_match || notary.declared_match || null,
+          service_match_source: existing.service_match_source || notary.service_match_source || null,
+        }
+      : notary,
+  );
+}
+const notaryChoices = [...candidateMap.values()].sort((a, b) => {
+  const selectedRank = (id: string) => (selectedIds.includes(id) ? 0 : 1);
+  const declaredRank = (item: (typeof a)) =>
+    item.declared_match === 'exact' ? 0 : item.declared_match === 'related' || item.declared_service ? 1 : 2;
+  const cityRank = (item: (typeof a)) =>
+    locationLabel && (item.comune || '').toLowerCase() === locationLabel.toLowerCase() ? 0 : 1;
+  const distA = typeof a.distance_km === 'number' ? a.distance_km : 9999;
+  const distB = typeof b.distance_km === 'number' ? b.distance_km : 9999;
+  return (
+    selectedRank(a.id) - selectedRank(b.id) ||
+    declaredRank(a) - declaredRank(b) ||
+    cityRank(a) - cityRank(b) ||
+    distA - distB ||
+    a.full_name.localeCompare(b.full_name, 'it')
+  );
+});
 
+const autoSelectIds =
+  step === 3 &&
+  selectedIds.length === 0 &&
+  notaryChoices.length > 0 &&
+  notaryChoices.length <= MAX_QUOTE_NOTARIES
+    ? notaryChoices.map((notary) => notary.id)
+    : selectedIds;
+const checkedIds = new Set(autoSelectIds);
 function hiddenFields(includeNotaries = true, includeProperties = true) {
   const pairs: Array<[string, string]> = [];
   const scalars: Array<[string, string]> = [
@@ -103,17 +191,47 @@ function stepHref(targetStep: number, includeNotaries = true) {
 
 const canGoStep2 = Boolean(service);
 const canGoStep3 = Boolean(service && comune && email.includes('@'));
-const canGoStep4 = Boolean(canGoStep3 && selectedNotaries.length > 0 && selectedNotaries.length <= 3);
+const canGoStep4 = Boolean(
+  canGoStep3 && selectedNotaries.length > 0 && selectedNotaries.length <= MAX_QUOTE_NOTARIES,
+);
+
+const primaryNotary = selectedNotaries[0] || null;
+const primaryNotaryName = primaryNotary ? titleCase(primaryNotary.full_name) : '';
+const slotsLeft = Math.max(0, MAX_QUOTE_NOTARIES - selectedNotaries.length);
+const hasMissionContext = Boolean(service && (primaryNotary || locationLabel));
+const heroTitle = service
+  ? primaryNotary
+    ? `Preventivo per ${serviceName}`
+    : `Preventivo per ${serviceName}${locationLabel ? ` a ${locationLabel}` : ''}`
+  : 'Richiedi un preventivo notarile chiaro';
+const heroLead = primaryNotary
+  ? `Lo stai chiedendo a ${primaryNotaryName}${locationLabel ? ` · ${locationLabel}` : ''}. Puoi estendere la stessa richiesta fino a ${slotsLeft || 0} ${slotsLeft === 1 ? 'altro notaio' : 'altri notai'} della zona.`
+  : service
+    ? `Descrivi la pratica${locationLabel ? ` a ${locationLabel}` : ''} e scegli fino a ${MAX_QUOTE_NOTARIES} notai a cui inviare la richiesta.`
+    : `Quattro passaggi: servizio, dati pratica, scelta fino a ${MAX_QUOTE_NOTARIES} notai e riepilogo prima dell’invio.`;
 ---
 <BaseLayout
-  title="Richiedi preventivo notarile | NotaioGiusto.it"
-  description="Scegli il servizio, descrivi la pratica, seleziona fino a 3 notai e invia una richiesta di preventivo chiara."
+  title={service
+    ? `Preventivo ${serviceName}${primaryNotaryName ? ` · ${primaryNotaryName}` : ''}${locationLabel ? ` · ${locationLabel}` : ''} | NotaioGiusto.it`
+    : 'Richiedi preventivo notarile | NotaioGiusto.it'}
+  description={`Scegli il servizio, descrivi la pratica, seleziona fino a ${MAX_QUOTE_NOTARIES} notai e invia una richiesta di preventivo chiara.`}
   noindex={true}
+  canonicalPath="/preventivo"
 >
+  <div
+    hidden
+    data-analytics-funnel
+    data-step={String(step)}
+    data-step-name={steps.find((item) => item.n === step)?.label || `step_${step}`}
+    data-service={serviceSlug || ''}
+    data-comune={comune || ''}
+    data-notary-count={String(selectedNotaries.length)}
+  ></div>
   <section class="funnel-hero">
-    <span class="eyebrow">Preventivo guidato</span>
-    <h1>Richiedi un preventivo notarile chiaro</h1>
-    <p class="lead">Quattro passaggi: servizio, dati pratica, scelta fino a 3 notai e riepilogo prima dell’invio.</p>
+    <span class="eyebrow">{hasMissionContext ? 'Preventivo in corso' : 'Preventivo guidato'}</span>
+    <h1>{heroTitle}</h1>
+    <p class="lead">{heroLead}</p>
+    <LegalDisclaimer variant="inline" />
     <ol class="funnel-steps">
       {steps.map((item) => (
         <li class={item.n === step ? 'is-active' : item.n < step ? 'is-done' : ''}>
@@ -124,15 +242,87 @@ const canGoStep4 = Boolean(canGoStep3 && selectedNotaries.length > 0 && selected
     </ol>
   </section>
 
+  {hasMissionContext && (
+    <section class="funnel-mission" aria-label="Cosa stai richiedendo">
+      <div class="funnel-mission__inner">
+        <div class="funnel-mission__main">
+          <p class="funnel-mission__label">Stai chiedendo</p>
+          <h2>
+            Preventivo per <strong>{serviceName}</strong>
+            {locationLabel ? <> · {locationLabel}</> : null}
+          </h2>
+          {primaryNotary ? (
+            <p class="funnel-mission__meta">
+              Studio principale: <strong>{primaryNotaryName}</strong>
+              {primaryNotary.comune ? ` · ${titleCase(primaryNotary.comune)}` : ''}
+              {primaryNotary.address ? ` · ${primaryNotary.address}` : ''}
+            </p>
+          ) : locationLabel ? (
+            <p class="funnel-mission__meta">
+              Dopo i dettagli potrai scegliere fino a {MAX_QUOTE_NOTARIES} notai a {locationLabel}.
+            </p>
+          ) : null}
+        </div>
+
+        {selectedNotaries.length > 0 && (
+          <div class="funnel-mission__picks">
+            <div class="funnel-mission__picks-head">
+              <span>
+                <strong>{selectedNotaries.length}</strong>/{MAX_QUOTE_NOTARIES} studi in richiesta
+              </span>
+              {slotsLeft > 0 && step < 3 ? (
+                <em>Puoi aggiungerne fino a {slotsLeft}</em>
+              ) : slotsLeft > 0 && step >= 3 ? (
+                <em>Aggiungi altri qui sotto</em>
+              ) : (
+                <em>Massimo raggiunto</em>
+              )}
+            </div>
+            <ul class="funnel-mission__chips">
+              {selectedNotaries.map((notary, index) => (
+                <li>
+                  <span class="funnel-mission__chip-rank">{index + 1}</span>
+                  <strong>{titleCase(notary.full_name)}</strong>
+                  <span>{notary.comune ? titleCase(notary.comune) : 'Studio'}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <div class="funnel-mission__footer">
+          {step === 2 && primaryNotary && slotsLeft > 0 && (
+            <p class="funnel-mission__hint">
+              Al passo “Notai” potrai estendere la stessa richiesta ad altri studi della zona.
+            </p>
+          )}
+          {step >= 3 && slotsLeft > 0 && (
+            <p class="funnel-mission__hint">
+              Spunta altri studi sotto (max {MAX_QUOTE_NOTARIES}) per confrontare i preventivi.
+            </p>
+          )}
+          {service && (
+            <a class="btn secondary funnel-mission__guide" href={`/quanto-costa/${service.slug}`}>
+              Guida alla pratica
+            </a>
+          )}
+        </div>
+      </div>
+    </section>
+  )}
+
   <section class="section funnel-section">
     {step === 1 && (
       <div class="funnel-stack">
         <form class="card funnel-card" method="get" action="/preventivo">
           <input type="hidden" name="step" value="2" />
           <h2>1. Quale prestazione ti serve?</h2>
-          <p>Scegli la pratica: nel passo successivo ti chiediamo i dettagli utili a un preventivo confrontabile, come su Veterinari.org ma tipizzati per atto notarile.</p>
+          <p>Scegli la pratica: nel passo successivo ti chiediamo i dettagli utili a un preventivo confrontabile, tipizzati per atto notarile.</p>
           <label>
-            Servizio notarile
+            <span class="form-label-row">
+              <span>Servizio notarile</span>
+              <span class="field-status field-status--required">Obbligatorio</span>
+            </span>
             <select name="servizio" required>
               <option value="">Scegli un servizio</option>
               {services.map((item) => (
@@ -155,7 +345,7 @@ const canGoStep4 = Boolean(canGoStep3 && selectedNotaries.length > 0 && selected
                 <strong>{category}</strong>
                 <div class="service-pick-grid">
                   {items.slice(0, 4).map((item) => (
-                    <a class="service-pick" href={`/preventivo?step=2&servizio=${encodeURIComponent(item.slug)}${params.get('notary') ? `&notary=${encodeURIComponent(params.get('notary') || '')}` : ''}`}>
+                    <a class="service-pick" rel="nofollow" href={`/preventivo?step=2&servizio=${encodeURIComponent(item.slug)}${params.get('notary') ? `&notary=${encodeURIComponent(params.get('notary') || '')}` : ''}`}>
                       <span>{item.plain_language_name || item.name}</span>
                       <em>{item.user_intent || 'Preventivo guidato con dettagli pratica'}</em>
                       <small>{euro(item.price_avg_cents)} · complessità {item.complexity || 'media'}</small>
@@ -174,37 +364,102 @@ const canGoStep4 = Boolean(canGoStep3 && selectedNotaries.length > 0 && selected
         <input type="hidden" name="step" value="3" />
         <input type="hidden" name="servizio" value={serviceSlug} />
         {selectedIds.map((id) => <input type="hidden" name="notary_ids" value={id} />)}
-        <h2>2. Descrivi bene la prestazione</h2>
+        <div class="funnel-form-heading">
+          <div>
+            <p class="funnel-form-heading__eyebrow">Passaggio rapido</p>
+            <h2>2. Inserisci i dati della pratica</h2>
+          </div>
+          <span class="funnel-form-heading__time">Circa 2 minuti</span>
+        </div>
+        <div class="funnel-required-note">
+          <strong>Per continuare bastano 2 dati:</strong>
+          <span>comune ed email.</span>
+          Tutti gli altri campi sono facoltativi, ma aiutano gli studi a formulare un preventivo più preciso.
+        </div>
         {!canGoStep2 && <div class="error">Seleziona prima un servizio valido.</div>}
         {service && intake && (
           <div class="service-brief">
             <div class="funnel-context">
-              <span><strong>{serviceName}</strong></span>
+              <span class="funnel-context__service"><strong>{serviceName}</strong></span>
               <span>{euro(service.price_avg_cents)} media indicativa</span>
-              <span>Profilo intake: {intake.profile}</span>
+              <span>{intake.profileLabel}</span>
             </div>
-            <p>{intake.intro}</p>
-            <div class="doc-hints">
-              <strong>Documenti utili da preparare</strong>
+            <p class="service-brief__lead">{intake.intro}</p>
+            <details class="doc-hints">
+              <summary>Documenti utili — non devi caricarli ora</summary>
               <ul class="check-list">
                 {intake.documentHints.map((doc) => <li>{doc}</li>)}
               </ul>
-            </div>
+            </details>
             <p class="helper-text">
               Guida completa:
               <a href={`/quanto-costa/${service.slug}`}>quanto costa {serviceName.toLowerCase()}</a>
             </p>
           </div>
         )}
-        <h3>Contatti e località</h3>
-        <div class="funnel-grid">
-          <label>Comune della pratica <input required name="comune" value={comune} placeholder="Es. Milano" /></label>
-          <label>Email obbligatoria <input required type="email" name="email" value={email} placeholder="nome@email.it" /></label>
-          <label>Nome <input name="name" value={name} placeholder="Facoltativo" /></label>
-          <label>Telefono <input name="phone" value={phone} placeholder="Facoltativo" /></label>
-          <label>Parti coinvolte <input name="parties" value={parties} placeholder="Es. 2 parti, acquirente e venditore" /></label>
+        <section class="funnel-field-section funnel-field-section--required">
+          <div class="funnel-field-section__head">
+            <div>
+              <h3>Dati indispensabili</h3>
+              <p>Servono per trovare gli studi corretti e inviarti la conferma.</p>
+            </div>
+            <span>2 campi</span>
+          </div>
+          <div class="funnel-grid">
+            <label>
+              <span class="form-label-row">
+                <span>Comune della pratica</span>
+                <span class="field-status field-status--required">Obbligatorio</span>
+              </span>
+              <input required name="comune" value={comune} placeholder="Es. Milano" autocomplete="address-level2" />
+              <small class="field-help">Mostreremo i notai disponibili nella zona.</small>
+            </label>
+            <label>
+              <span class="form-label-row">
+                <span>Email</span>
+                <span class="field-status field-status--required">Obbligatorio</span>
+              </span>
+              <input required type="email" name="email" value={email} placeholder="nome@email.it" autocomplete="email" />
+              <small class="field-help">Riceverai qui conferma e risposte degli studi.</small>
+            </label>
+          </div>
+        </section>
+
+        <section class="funnel-field-section">
+          <div class="funnel-field-section__head">
+            <div>
+              <h3>Come preferisci essere ricontattato?</h3>
+              <p>Facoltativo: puoi proseguire anche senza nome e telefono.</p>
+            </div>
+            <span class="field-status">Facoltativo</span>
+          </div>
+          <div class="funnel-grid">
+            <label>
+              <span class="form-label-row"><span>Nome</span><span class="field-status">Facoltativo</span></span>
+              <input name="name" value={name} placeholder="Il tuo nome" autocomplete="name" />
+            </label>
+            <label>
+              <span class="form-label-row"><span>Telefono</span><span class="field-status">Facoltativo</span></span>
+              <input name="phone" value={phone} placeholder="Es. 333 1234567" autocomplete="tel" inputmode="tel" />
+            </label>
+          </div>
+        </section>
+
+        <section class="funnel-field-section">
+          <div class="funnel-field-section__head">
+            <div>
+              <h3>Dettagli che migliorano il preventivo</h3>
+              <p>Più elementi inserisci, più la risposta dello studio potrà essere concreta.</p>
+            </div>
+            <span class="field-status">Facoltativo</span>
+          </div>
+          <div class="funnel-grid">
+            <label>
+              <span class="form-label-row"><span>Parti coinvolte</span><span class="field-status">Facoltativo</span></span>
+              <input name="parties" value={parties} placeholder="Es. 2 parti, debitore e creditore" />
+            </label>
           <label>
-            Documenti già disponibili
+            <span class="form-label-row"><span>Documenti già disponibili</span><span class="field-status">Facoltativo</span></span>
             <select name="documents_ready">
               <option value="">Non indicato</option>
               <option value="pochi" selected={documentsReady === 'pochi'}>Pochi / da preparare</option>
@@ -212,15 +467,20 @@ const canGoStep4 = Boolean(canGoStep3 && selectedNotaries.length > 0 && selected
               <option value="quasi_tutti" selected={documentsReady === 'quasi_tutti'}>Quasi tutti</option>
             </select>
           </label>
-        </div>
+          </div>
 
-        {intake && (
-          <>
-            <h3>{intake.title}</h3>
+          {intake && (
+            <>
+              <h3 class="funnel-field-subtitle">{intake.title}</h3>
             <div class="funnel-grid">
               {intake.fields.map((field) => (
                 <label class={field.type === 'textarea' ? 'full-span' : ''}>
-                  {field.label}
+                  <span class="form-label-row">
+                    <span>{field.label}</span>
+                    <span class={`field-status ${field.required ? 'field-status--required' : ''}`}>
+                      {field.required ? 'Obbligatorio' : 'Facoltativo'}
+                    </span>
+                  </span>
                   {field.type === 'select' ? (
                     <select name={`intake_${field.name}`} required={field.required}>
                       {(field.options || []).map((option) => (
@@ -244,15 +504,25 @@ const canGoStep4 = Boolean(canGoStep3 && selectedNotaries.length > 0 && selected
                 </label>
               ))}
             </div>
-          </>
-        )}
+            </>
+          )}
 
-        <label>Note libere / dettagli aggiuntivi <textarea name="message" placeholder="Aggiungi elementi non coperti dai campi sopra...">{message}</textarea></label>
+          <label>
+            <span class="form-label-row"><span>Note libere / dettagli aggiuntivi</span><span class="field-status">Facoltativo</span></span>
+            <textarea name="message" placeholder="Aggiungi solo ciò che può aiutare lo studio a capire meglio la richiesta...">{message}</textarea>
+          </label>
+        </section>
         <input type="hidden" name="urgency" value={urgency || intakeValues.timing_preference || ''} />
         <input type="hidden" name="property_value" value={propertyValue || intakeValues.deal_value || intakeValues.loan_amount || ''} />
 
         <div class="property-attach">
-          <h3>Immobili del fascicolo da condividere</h3>
+          <div class="funnel-field-section__head">
+            <div>
+              <h3>Immobili del fascicolo da condividere</h3>
+              <p>Allega un immobile solo se è pertinente alla pratica.</p>
+            </div>
+            <span class="field-status">Facoltativo</span>
+          </div>
           {shareableProperties.length ? (
             <>
               <p class="helper-text">Seleziona gli immobili i cui dati catastali vuoi allegare a questa pratica (es. 730, compravendita, successione).</p>
@@ -282,9 +552,18 @@ const canGoStep4 = Boolean(canGoStep3 && selectedNotaries.length > 0 && selected
         </div>
 
         <div class="funnel-actions">
-          <a class="btn secondary" href={`/preventivo?step=1&servizio=${encodeURIComponent(serviceSlug)}`}>Indietro</a>
-          <button class="btn blue" type="submit" disabled={!canGoStep2}>Scegli i notai</button>
+          <a class="btn secondary" rel="nofollow" href={`/preventivo?step=1&servizio=${encodeURIComponent(serviceSlug)}${selectedIds.length ? `&notary=${encodeURIComponent(selectedIds.join(','))}` : ''}`}>Indietro</a>
+          <button class="btn blue" type="submit" disabled={!canGoStep2}>
+            {primaryNotary
+              ? slotsLeft > 0
+                ? 'Continua · puoi aggiungere altri notai'
+                : 'Continua'
+              : 'Scegli i notai'}
+          </button>
         </div>
+        <p class="funnel-action-reassurance">
+          Nessun pagamento e nessun invio in questa fase. Potrai controllare tutto prima di confermare.
+        </p>
       </form>
     )}
 
@@ -297,10 +576,23 @@ const canGoStep4 = Boolean(canGoStep3 && selectedNotaries.length > 0 && selected
             key === 'comune' ? null : <input type="hidden" name={key} value={value} />
           ))}
           {selectedIds.map((id) => <input type="hidden" name="notary_ids" value={id} />)}
-          <h2>3. Seleziona fino a 3 notai</h2>
+          <h2>3. Seleziona fino a {MAX_QUOTE_NOTARIES} notai</h2>
+          <div class="funnel-required-note funnel-required-note--compact">
+            <strong>Seleziona almeno 1 studio.</strong>
+            Puoi sceglierne fino a {MAX_QUOTE_NOTARIES} per confrontare più risposte con una sola richiesta.
+          </div>
           <p>
-            Mostriamo studi nella zona indicata. La disponibilità del servizio va sempre confermata dallo studio:
-            qui il servizio è <strong>richiesto dall’utente</strong>, non dichiarato automaticamente dal notaio.
+            {primaryNotary
+              ? <>
+                  <strong>{primaryNotaryName}</strong> è già selezionato per <strong>{serviceName}</strong>.
+                  {slotsLeft > 0
+                    ? ` Spunta fino a ${slotsLeft} ${slotsLeft === 1 ? 'altro studio' : 'altri studi'} per estendere la stessa richiesta e confrontare i preventivi.`
+                    : ` Hai già ${MAX_QUOTE_NOTARIES} studi: deselezionane uno per sostituirlo.`}
+                </>
+              : <>
+                  Scegli fino a {MAX_QUOTE_NOTARIES} notai a cui inviare la richiesta di <strong>{serviceName || 'preventivo'}</strong>.
+                  In cima trovi gli studi con servizio dichiarato o affine; gli altri sono nella zona (anche per prossimità).
+                </>}
           </p>
           <div class="funnel-grid">
             <label>Comune <input name="comune" value={comune} placeholder="Es. Milano" /></label>
@@ -313,23 +605,43 @@ const canGoStep4 = Boolean(canGoStep3 && selectedNotaries.length > 0 && selected
         <form class="card funnel-card" method="get" action="/preventivo">
           <input type="hidden" name="step" value="4" />
           {hiddenFields(false).map(([key, value]) => <input type="hidden" name={key} value={value} />)}
-          <div class="list">
+          <div class="notary-pick-toolbar">
+            <p class="helper-text" id="notary-limit-hint" style="margin:0">
+              Selezionati {autoSelectIds.length}/{MAX_QUOTE_NOTARIES} studi notarili.
+            </p>
+            <div class="notary-pick-toolbar__actions">
+              <button class="btn secondary" type="button" data-notary-select-all>Seleziona tutti</button>
+              <button class="btn secondary" type="button" data-notary-clear>Deseleziona</button>
+            </div>
+          </div>
+          <div class="notary-pick-list list">
             {notaryChoices.map((notary) => {
-              const checked = selectedIds.includes(notary.id);
+              const checked = checkedIds.has(notary.id);
               const exactCity = locationLabel && (notary.comune || '').toLowerCase() === locationLabel.toLowerCase();
+              const distanceKm =
+                typeof (notary as { distance_km?: number | null }).distance_km === 'number'
+                  ? (notary as { distance_km?: number | null }).distance_km
+                  : null;
               return (
-                <label class={`notary-pick ${checked ? 'is-selected' : ''}`}>
+                <label class={`notary-pick notary-pick--compact ${checked ? 'is-selected' : ''}`}>
                   <input type="checkbox" name="notary_ids" value={notary.id} checked={checked} />
                   <span>
                     <strong>{titleCase(notary.full_name)}</strong>
                     <em>
                       {notary.address || 'Indirizzo non disponibile'}
                       {notary.comune ? ` · ${titleCase(notary.comune)}` : ''}
+                      {distanceKm != null ? ` · ~${distanceKm.toFixed(1).replace('.', ',')} km` : ''}
                     </em>
                     <span class="result-badges">
-                      {notary.is_official_notariato && <span>Fonte ufficiale Notariato</span>}
-                      {exactCity && <span>Nel comune cercato</span>}
-                      <span>Servizio solo richiesto</span>
+                      {checked && <span>Selezionato</span>}
+                      {notary.declared_match === 'exact'
+                        ? <span>Servizio dichiarato</span>
+                        : notary.declared_match === 'related' || notary.declared_service
+                          ? <span>Servizio affine</span>
+                          : null}
+                      {notary.is_official_notariato && (
+                        <span class="official-mark" title="Fonte ufficiale Consiglio Nazionale del Notariato">Ufficiale</span>
+                      )}
                     </span>
                   </span>
                 </label>
@@ -337,9 +649,8 @@ const canGoStep4 = Boolean(canGoStep3 && selectedNotaries.length > 0 && selected
             })}
           </div>
           {!notaryChoices.length && <div class="notice">Nessun notaio trovato per questa località. Prova un comune vicino o più ampio.</div>}
-          <p class="helper-text" id="notary-limit-hint">Puoi selezionare al massimo 3 studi notarili.</p>
           <div class="funnel-actions">
-            <a class="btn secondary" href={stepHref(2)}>Indietro</a>
+            <a class="btn secondary" rel="nofollow" href={stepHref(2)}>Indietro</a>
             <button class="btn blue" type="submit" disabled={!notaryChoices.length}>Vai al riepilogo</button>
           </div>
         </form>
@@ -348,7 +659,7 @@ const canGoStep4 = Boolean(canGoStep3 && selectedNotaries.length > 0 && selected
 
     {step === 4 && (
       <div class="funnel-stack">
-        {!canGoStep4 && <div class="error">Seleziona da 1 a 3 notai per continuare.</div>}
+        {!canGoStep4 && <div class="error">Seleziona da 1 a {MAX_QUOTE_NOTARIES} notai per continuare.</div>}
         <div class="card funnel-card">
           <h2>4. Riepilogo richiesta</h2>
           <div class="summary-grid">
@@ -364,7 +675,7 @@ const canGoStep4 = Boolean(canGoStep3 && selectedNotaries.length > 0 && selected
           {message && <p class="summary-message"><strong>Note:</strong> {message}</p>}
           {intake && Object.keys(intakeValues).length > 0 && (
             <>
-              <h3>Dettagli prestazione ({intake.profile})</h3>
+              <h3>Dettagli pratica · {intake.profileLabel}</h3>
               <div class="summary-grid">
                 {intake.fields.filter((field) => intakeValues[field.name]).map((field) => (
                   <div>
@@ -388,7 +699,7 @@ const canGoStep4 = Boolean(canGoStep3 && selectedNotaries.length > 0 && selected
           ) : (
             <p class="helper-text">Nessun immobile allegato dal fascicolo.</p>
           )}
-          <h3>Notai selezionati ({selectedNotaries.length}/3)</h3>
+          <h3>Notai selezionati ({selectedNotaries.length}/{MAX_QUOTE_NOTARIES})</h3>
           <ul class="summary-notaries">
             {selectedNotaries.map((notary) => (
               <li>
@@ -417,11 +728,41 @@ const canGoStep4 = Boolean(canGoStep3 && selectedNotaries.length > 0 && selected
             ))}
             {selectedNotaries.map((notary) => <input type="hidden" name="notary_ids" value={notary.id} />)}
             {selectedProperties.map((property) => <input type="hidden" name="property_ids" value={property.id} />)}
+            <input type="hidden" name="antispam_token" value={antispam?.token || ''} />
+            <label class="antispam-honeypot" aria-hidden="true">
+              Sito web
+              <input type="text" name="website" value="" tabindex="-1" autocomplete="off" />
+            </label>
             <p>Conferma per salvare la richiesta nel database. L’invio email ai notai arriverà nel passo successivo.</p>
-            <div class="funnel-actions">
-              <a class="btn secondary" href={stepHref(3)}>Indietro</a>
-              <button class="btn blue" type="submit">Invia richiesta</button>
+            <div class="funnel-grid">
+              <label>
+                <span class="form-label-row">
+                  <span>Codice antispam: quanto fa {antispam?.question}?</span>
+                  <span class="field-status field-status--required">Obbligatorio</span>
+                </span>
+                <input
+                  name="antispam_answer"
+                  type="text"
+                  inputmode="numeric"
+                  pattern="[0-9]*"
+                  autocomplete="off"
+                  required
+                  placeholder="Risultato"
+                />
+              </label>
             </div>
+            <div class="funnel-actions">
+              <a class="btn secondary" rel="nofollow" href={stepHref(3)}>Indietro</a>
+              <button
+                class="btn blue"
+                type="submit"
+                data-analytics-event="quote_request_attempt"
+                data-analytics-params={JSON.stringify({ service_slug: serviceSlug, comune: comune || null })}
+              >
+                Invia richiesta
+              </button>
+            </div>
+            <LegalDisclaimer variant="compact" />
           </form>
         )}
       </div>
@@ -429,16 +770,37 @@ const canGoStep4 = Boolean(canGoStep3 && selectedNotaries.length > 0 && selected
   </section>
 </BaseLayout>
 
-<script>
+<script define:vars={{ maxNotaries: MAX_QUOTE_NOTARIES }}>
   const boxes = Array.from(document.querySelectorAll('input[type="checkbox"][name="notary_ids"]'));
   const hint = document.getElementById('notary-limit-hint');
+  const selectAllBtn = document.querySelector('[data-notary-select-all]');
+  const clearBtn = document.querySelector('[data-notary-clear]');
+
   function syncLimit() {
     const checked = boxes.filter((box) => box.checked);
     boxes.forEach((box) => {
-      box.disabled = !box.checked && checked.length >= 3;
+      const row = box.closest('.notary-pick');
+      if (row) row.classList.toggle('is-selected', box.checked);
+      box.disabled = !box.checked && checked.length >= maxNotaries;
     });
-    if (hint) hint.textContent = `Selezionati ${checked.length}/3 studi notarili.`;
+    if (hint) hint.textContent = `Selezionati ${checked.length}/${maxNotaries} studi notarili.`;
   }
+
   boxes.forEach((box) => box.addEventListener('change', syncLimit));
+  selectAllBtn?.addEventListener('click', () => {
+    boxes.slice(0, maxNotaries).forEach((box) => {
+      box.checked = true;
+    });
+    boxes.slice(maxNotaries).forEach((box) => {
+      box.checked = false;
+    });
+    syncLimit();
+  });
+  clearBtn?.addEventListener('click', () => {
+    boxes.forEach((box) => {
+      box.checked = false;
+    });
+    syncLimit();
+  });
   syncLimit();
 </script>

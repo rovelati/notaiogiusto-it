@@ -1,5 +1,10 @@
 ---
-import { absoluteUrl } from '../lib/site';
+import Footer from '../components/Footer.astro';
+import { getAdminEmail } from '../lib/admin';
+import { getGaMeasurementId } from '../lib/analytics';
+import { getClientEmail } from '../lib/client-auth';
+import { getNotaryEmail } from '../lib/notary-auth';
+import { absoluteUrl, siteConfig } from '../lib/site';
 
 const {
   title = 'NotaioGiusto.it',
@@ -7,65 +12,179 @@ const {
   noindex = false,
   canonicalPath,
   jsonLd,
+  ogImage,
+  ogImageAlt = title,
+  ogType = 'website',
+  author,
+  publishedTime,
+  modifiedTime,
+  articleSection,
 } = Astro.props;
 
 const canonical = absoluteUrl(canonicalPath || Astro.url.pathname);
+const shareImage = absoluteUrl(ogImage || '/brand/og-default.jpg');
 const jsonLdBlocks = Array.isArray(jsonLd) ? jsonLd : jsonLd ? [jsonLd] : [];
+const gaId = getGaMeasurementId();
+const adminEmail = getAdminEmail(Astro.cookies);
+const clientEmail = getClientEmail(Astro.cookies);
+const notaryEmail = getNotaryEmail(Astro.cookies);
+const sessionEmail = adminEmail || clientEmail || notaryEmail;
+const accountHref = adminEmail
+  ? '/admin-test'
+  : clientEmail
+    ? '/area-clienti/richieste'
+    : notaryEmail
+      ? '/area-notai/scheda'
+      : '/accedi';
+const accountRole = adminEmail ? 'Admin' : clientEmail ? 'Cliente' : notaryEmail ? 'Notaio' : '';
 const navItems = [
   { href: '/quanto-costa', label: 'Quanto costa?' },
   { href: '/notai', label: 'Cerca notai' },
-  { href: '/preventivo', label: 'Preventivo' },
-  { href: '/area-clienti', label: 'Area clienti' },
+  { href: '/preventivo', label: 'Preventivo', nofollow: true },
+  { href: '/area-clienti', label: 'Area clienti', nofollow: true },
   { href: '/area-notai', label: 'Area notai' },
 ];
 ---
 <!doctype html>
-<html lang="it">
+<html lang="it" data-theme="light">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
-    {noindex && <meta name="robots" content="noindex,nofollow" />}
-    <link rel="stylesheet" href="/styles.css" />
+    <meta name="robots" content={noindex ? 'noindex,nofollow,noarchive' : 'index,follow,max-image-preview:large'} />
+    <meta name="googlebot" content={noindex ? 'noindex,nofollow,noarchive' : 'index,follow,max-image-preview:large'} />
+    {author && <meta name="author" content={author} />}
+    <meta name="theme-color" content="#173B6C" />
+    <meta name="application-name" content={siteConfig.name} />
+    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png" />
+    <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48 64x64 96x96" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta property="og:type" content={ogType} />
+    <meta property="og:site_name" content={siteConfig.name} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={shareImage} />
+    <meta property="og:image:alt" content={ogImageAlt} />
+    <meta property="og:locale" content="it_IT" />
+    {ogType === 'article' && publishedTime && <meta property="article:published_time" content={publishedTime} />}
+    {ogType === 'article' && modifiedTime && <meta property="article:modified_time" content={modifiedTime} />}
+    {ogType === 'article' && author && <meta property="article:author" content={author} />}
+    {ogType === 'article' && articleSection && <meta property="article:section" content={articleSection} />}
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={shareImage} />
+    <link rel="preload" href="/fonts/source-sans-3-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/source-serif-4-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="/styles.css?v=20261003-1" />
+    <script
+      is:inline
+      async
+      src="https://cmp.uniconsent.com/v2/cmp.js"
+      data-license="a635480a30"
+    ></script>
+    <script is:inline>
+      (() => {
+        try {
+          const saved = localStorage.getItem('ng-theme');
+          const theme = saved === 'solar' ? 'solar' : 'light';
+          document.documentElement.setAttribute('data-theme', theme);
+        } catch (_) {}
+      })();
+    </script>
+    {gaId ? (
+      <>
+        {/* Snippet ufficiale: GSC cerca gtag.js + gtag('config','G-…') letterale in <head>. */}
+        <script async src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}></script>
+        <script
+          is:inline
+          set:html={`
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+window.gtag = gtag;
+gtag('js', new Date());
+gtag('config', '${gaId}', { anonymize_ip: true, send_page_view: true });
+`}
+        />
+      </>
+    ) : null}
     {jsonLdBlocks.map((block) => (
       <script type="application/ld+json" set:html={JSON.stringify(block)} />
     ))}
   </head>
   <body>
     <header class="site-header">
-      <a class="brand" href="/" aria-label="NotaioGiusto.it">
-        <span class="brand-mark">N</span>
+      <a class="brand" href="/" aria-label="NotaioGiusto.it — Home">
+        <img
+          class="brand-mark"
+          src="/brand/mark.svg"
+          width="42"
+          height="42"
+          alt=""
+          decoding="async"
+        />
         <span>
           <strong>NotaioGiusto.it</strong>
           <small>Notai, costi e preventivi</small>
         </span>
       </a>
-      <button
-        class="nav-toggle"
-        type="button"
-        aria-expanded="false"
-        aria-controls="site-nav"
-        aria-label="Apri menu"
-      >
-        <span></span>
-        <span></span>
-        <span></span>
-      </button>
       <nav class="nav" id="site-nav">
         {navItems.map((item) => (
-          <a href={item.href}>{item.label}</a>
+          <a href={item.href} rel={item.nofollow ? 'nofollow' : undefined}>{item.label}</a>
         ))}
       </nav>
+      <div class="header-actions">
+        {sessionEmail ? (
+          <a
+            class="header-session-link"
+            href={accountHref}
+            rel="nofollow"
+            title={`Connesso come ${sessionEmail}`}
+            aria-label={`Connesso come ${accountRole}: ${sessionEmail}. Apri area riservata`}
+          >
+            <span class="header-session-link__dot" aria-hidden="true"></span>
+            <span>
+              <small>Connesso</small>
+              <strong>{accountRole}</strong>
+            </span>
+          </a>
+        ) : (
+          <>
+            <a class="header-auth-link" rel="nofollow" href={accountHref}>Accedi</a>
+            <a class="header-register-link" rel="nofollow" href="/accedi?mode=register">Registrati</a>
+          </>
+        )}
+        <button
+          class="theme-toggle"
+          type="button"
+          data-mode="light"
+          aria-label="Attiva tema scuro"
+          title="Cambia tema"
+        ></button>
+        <button
+          class="nav-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="site-nav"
+          aria-label="Apri menu"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
     </header>
     <main>
       <slot />
     </main>
-    <footer class="footer">
-      <strong>NotaioGiusto.it</strong>
-      <span>I costi sono indicativi: imposte e spese variano in base alla pratica.</span>
-    </footer>
+    <Footer />
     <script>
       const toggle = document.querySelector('.nav-toggle');
       const nav = document.querySelector('#site-nav');
@@ -85,6 +204,56 @@ const navItems = [
           if (event.key === 'Escape') setOpen(false);
         });
       }
+
+      const themeBtn = document.querySelector('.theme-toggle');
+      const applyTheme = (theme) => {
+        const next = theme === 'solar' ? 'solar' : 'light';
+        document.documentElement.setAttribute('data-theme', next);
+        if (themeBtn) {
+          themeBtn.setAttribute('data-mode', next);
+          themeBtn.setAttribute(
+            'aria-label',
+            next === 'solar' ? 'Attiva tema chiaro' : 'Attiva tema scuro',
+          );
+        }
+        try {
+          localStorage.setItem('ng-theme', next);
+        } catch (_) {}
+      };
+      applyTheme(document.documentElement.getAttribute('data-theme') || 'light');
+      themeBtn?.addEventListener('click', () => {
+        const current = document.documentElement.getAttribute('data-theme');
+        applyTheme(current === 'solar' ? 'light' : 'solar');
+      });
+
+      const stickyBars = Array.from(document.querySelectorAll('.listing-sticky-bar'));
+      if (stickyBars.length) {
+        const revealAt = 140;
+        const syncSticky = () => {
+          const show = window.scrollY > revealAt;
+          stickyBars.forEach((bar) => bar.classList.toggle('is-visible', show));
+        };
+        syncSticky();
+        window.addEventListener('scroll', syncSticky, { passive: true });
+      }
+
+      const footer = document.querySelector('.site-footer');
+      const footerAwareBars = Array.from(
+        document.querySelectorAll('.listing-sticky-bar, .sticky-actions'),
+      );
+      if (footer && footerAwareBars.length && 'IntersectionObserver' in window) {
+        const footerObserver = new IntersectionObserver(
+          ([entry]) => {
+            footerAwareBars.forEach((bar) => {
+              bar.classList.toggle('is-footer-visible', entry.isIntersecting);
+            });
+          },
+          { threshold: 0.01 },
+        );
+        footerObserver.observe(footer);
+      }
     </script>
+    {gaId ? <script src="/js/analytics.js" defer></script> : null}
+    <script src="/js/near-me.js?v=20260922-2" defer></script>
   </body>
 </html>

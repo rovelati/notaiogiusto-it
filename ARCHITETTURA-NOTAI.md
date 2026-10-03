@@ -431,3 +431,5 @@ Chiavi operative:
 - `DATABASE_URL`: riuso dello stesso server Postgres, con schema separato `notai`;
 - `DEEPSEEK_API_KEY`: da riportare dall'ambiente operativo Veterinari quando disponibile;
 - `GOOGLE_MAPS_API_KEY`: da creare su GCP per GMB/geocoding.
+- `MAIL-GSC-GA4`: email-gsc-ga4.env 
+- `CHIAVE-JSON-PER_GSC-GA4: notai-505314-80cc0bbd602e.json

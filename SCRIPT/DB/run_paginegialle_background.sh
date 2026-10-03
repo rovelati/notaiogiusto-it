@@ -4,6 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 LIMIT="${LIMIT:-50}"
+COMUNE="${COMUNE:-}"
 CANDIDATE_LIMIT="${CANDIDATE_LIMIT:-4}"
 THRESHOLD="${THRESHOLD:-70}"
 MIN_DELAY="${MIN_DELAY:-60}"
@@ -27,17 +28,24 @@ print(f"PRECHECK_OK: {len(html)} byte")
 PY
 
 LOG="$LOG_DIR/paginegialle_batch_$(date +%Y%m%d_%H%M%S).log"
-nohup python3 run_paginegialle_notai_batch.py \
-  --limit "$LIMIT" \
-  --candidate-limit "$CANDIDATE_LIMIT" \
-  --threshold "$THRESHOLD" \
-  --apply \
-  --search-mode "$SEARCH_MODE" \
-  --min-delay "$MIN_DELAY" \
-  --max-delay "$MAX_DELAY" \
-  > "$LOG" 2>&1 &
+CMD=(
+  python3 run_paginegialle_notai_batch.py
+  --limit "$LIMIT"
+  --candidate-limit "$CANDIDATE_LIMIT"
+  --threshold "$THRESHOLD"
+  --apply
+  --search-mode "$SEARCH_MODE"
+  --min-delay "$MIN_DELAY"
+  --max-delay "$MAX_DELAY"
+)
+if [[ -n "$COMUNE" ]]; then
+  CMD+=(--comune "$COMUNE")
+fi
+
+nohup "${CMD[@]}" > "$LOG" 2>&1 &
 
 PID="$!"
 echo "$PID" > "$STATE_DIR/paginegialle_batch.pid"
 echo "PID=$PID"
 echo "LOG=$LOG"
+echo "COMUNE=${COMUNE:-all}"

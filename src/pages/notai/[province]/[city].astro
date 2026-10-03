@@ -1,0 +1,239 @@
+---
+import NotaiSearchBar from '../../../components/NotaiSearchBar.astro';
+import NotaiSearchResults from '../../../components/NotaiSearchResults.astro';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { titleCase } from '../../../lib/format';
+import {
+  SEARCH_RADIUS_STEPS,
+  asCoord,
+  hasCoords,
+  isPlausibleItalianPoint,
+  locationScopeNote,
+  parseRadiusKm,
+} from '../../../lib/geo';
+import {
+  canonicalNotaiCityPath,
+  cityNameFromSlug,
+  findCapoluogo,
+  listingSeoLinks,
+  toLocationSlug,
+} from '../../../lib/locations';
+import {
+  LISTING_PAGE_SIZE,
+  buildNotariesItemListJsonLd,
+  searchNotariesForLocation,
+} from '../../../lib/notai';
+import { cityFaqJsonLd, cityListingSeo } from '../../../lib/seo-content';
+import { absoluteUrl, shouldNoindexListingUrl } from '../../../lib/site';
+import { canonicalNotaiProvincePath } from '../../../lib/sitemap-locations';
+
+const provinceParam = (Astro.params.province || '').trim().toLowerCase();
+const cityParam = (Astro.params.city || '').trim().toLowerCase();
+const cityFromSlug = cityNameFromSlug(cityParam);
+const cap = findCapoluogo(cityFromSlug) || findCapoluogo(cityParam);
+const comune = cap?.name || cityFromSlug;
+const province = (cap?.province || provinceParam).toUpperCase();
+const radiusKm = parseRadiusKm(Astro.url.searchParams.get('raggio'));
+const page = Math.max(1, Number(Astro.url.searchParams.get('page') || '1') || 1);
+const vicino = Astro.url.searchParams.get('vicino') === '1';
+const nearLat = Number(Astro.url.searchParams.get('lat'));
+const nearLng = Number(Astro.url.searchParams.get('lng'));
+const hasNear =
+  vicino && Number.isFinite(nearLat) && Number.isFinite(nearLng)
+    ? { lat: nearLat, lng: nearLng }
+    : null;
+
+if (!provinceParam || !cityParam) {
+  return Astro.redirect('/notai');
+}
+
+// Vicino a me: ricerca dalla posizione utente (pagina generica noindex)
+if (hasNear) {
+  const params = new URLSearchParams({
+    vicino: '1',
+    lat: String(hasNear.lat),
+    lng: String(hasNear.lng),
+  });
+  if (radiusKm != null) params.set('raggio', String(radiusKm));
+  return Astro.redirect(`/notai?${params}`, 302);
+}
+
+const canonical = canonicalNotaiCityPath(comune, province);
+if (Astro.url.pathname.replace(/\/+$/, '') !== canonical) {
+  return Astro.redirect(canonical, 301);
+}
+
+const locationResult = await searchNotariesForLocation({
+  comune,
+  limit: LISTING_PAGE_SIZE,
+  page,
+  radiusKm,
+});
+const locationLabel = titleCase(comune);
+const activeRadiusKm = locationResult.radiusKm ?? radiusKm;
+const searchCenter = locationResult.center;
+
+const notaries = locationResult.notaries.map((notary) => {
+  const lat = asCoord(notary.lat);
+  const lng = asCoord(notary.lng);
+  const exactCity = (notary.comune || '').toLowerCase() === locationLabel.toLowerCase();
+  return {
+    ...notary,
+    lat,
+    lng,
+    exactCity,
+    distanceKm: typeof notary.distance_km === 'number' ? notary.distance_km : null,
+  };
+});
+
+const exactCityCount = locationResult.exactCityCount;
+const withCoordsCount = notaries.filter(
+  (notary) => hasCoords(notary) && isPlausibleItalianPoint({ lat: notary.lat!, lng: notary.lng! }),
+).length;
+const scopeNote = locationScopeNote({
+  locationLabel,
+  scope: locationResult.scope,
+  exactCityCount,
+  radiusKm: activeRadiusKm,
+});
+const preventivoBase = `/preventivo?step=2&comune=${encodeURIComponent(comune)}`;
+const mapPoints = notaries
+  .map((notary, index) => ({ notary, rank: (locationResult.page - 1) * LISTING_PAGE_SIZE + index + 1 }))
+  .filter(
+    ({ notary }) =>
+      hasCoords(notary) && isPlausibleItalianPoint({ lat: notary.lat!, lng: notary.lng! }),
+  )
+  .map(({ notary, rank }) => ({
+    id: notary.id,
+    name: titleCase(notary.full_name),
+    slug: notary.source_slug,
+    address: [notary.address, notary.comune ? titleCase(notary.comune) : null].filter(Boolean).join(' · '),
+    lat: notary.lat as number,
+    lng: notary.lng as number,
+    rank,
+    exactCity: notary.exactCity,
+  }));
+
+const showRadius = Boolean(searchCenter || activeRadiusKm != null);
+const heroCountNote =
+  activeRadiusKm != null && (locationResult.scope === 'raggio' || exactCityCount === 0)
+    ? `${locationResult.total} studi entro ${activeRadiusKm} km da ${locationLabel}`
+    : `${locationResult.total} studi a ${locationLabel}`;
+
+const citySeo = cityListingSeo(locationLabel, province, locationResult.total);
+const title = citySeo.title;
+const description = citySeo.description;
+const seoBundle = listingSeoLinks({
+  comune,
+  province,
+  limitCities: 6,
+  limitServices: 8,
+});
+const locationSlug = toLocationSlug(comune, province);
+const firstHomeLocalHref = `/quanto-costa/${locationSlug}/acquisto-prima-casa/notai`;
+
+const paginationBase = (() => {
+  const url = new URL(canonical, 'https://www.notaiogiusto.it');
+  if (radiusKm != null) url.searchParams.set('raggio', String(radiusKm));
+  return `${url.pathname}${url.search}`;
+})();
+
+const noindex = locationResult.page > 1 || shouldNoindexListingUrl(Astro.url) || radiusKm != null;
+const provinceHubHref = canonicalNotaiProvincePath(province);
+const listJsonLd =
+  locationResult.page === 1
+    ? buildNotariesItemListJsonLd({
+        notaries,
+        page: locationResult.page,
+        pageSize: LISTING_PAGE_SIZE,
+        listName: `Notai a ${locationLabel}`,
+        listUrl: absoluteUrl(canonical),
+      })
+    : null;
+const faqJsonLd = locationResult.page === 1 ? cityFaqJsonLd(citySeo.faqs) : null;
+const jsonLd = [listJsonLd, faqJsonLd].filter(Boolean);
+---
+<BaseLayout
+  title={title}
+  description={description}
+  canonicalPath={canonical}
+  noindex={noindex}
+  jsonLd={jsonLd.length ? jsonLd : null}
+>
+  <section class="home-hero search-hero">
+    <div class="home-hero__glow" aria-hidden="true"></div>
+    <div class="home-hero__inner home-hero__inner--wide">
+      <div class="home-hero__intro">
+        <p class="search-hero__eyebrow">Notai · costi · preventivi</p>
+        <h1>{citySeo.h1}</h1>
+        <p class="home-hero__tagline search-hero__tagline">{citySeo.lead}</p>
+        <p class="home-hero__hint search-hero__count">{heroCountNote}</p>
+        <p class="home-hero__hint">
+          <a href={provinceHubHref}>Notai in provincia di {province}</a>
+          {' · '}
+          <a href={firstHomeLocalHref}>Acquisto prima casa</a>
+        </p>
+      </div>
+      <div class="home-hero__search">
+        <NotaiSearchBar variant="hero" comune={comune} />
+        <p class="home-hero__hint">
+          Dove: {locationLabel} ({province})
+          {activeRadiusKm != null ? ` · Raggio: ${activeRadiusKm} km` : ''}
+          {' · '}
+          <a href={preventivoBase} rel="nofollow">Richiedi preventivo</a>
+          {' · '}
+          <a href={firstHomeLocalHref}>Acquisto prima casa</a>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <NotaiSearchResults
+    notaries={notaries}
+    locationLabel={locationLabel}
+    exactCityCount={exactCityCount}
+    withCoordsCount={withCoordsCount}
+    scopeNote={scopeNote}
+    preventivoBase={preventivoBase}
+    mapPoints={mapPoints}
+    searchOrigin={
+      searchCenter
+        ? { lat: searchCenter.lat, lng: searchCenter.lng, label: locationLabel }
+        : null
+    }
+    radiusKm={showRadius ? activeRadiusKm : null}
+    radiusOptions={[...SEARCH_RADIUS_STEPS]}
+    radiusBasePath={showRadius ? paginationBase : ''}
+    nearbyCityLinks={seoBundle.cityLinks}
+    serviceSeoLinks={seoBundle.serviceLinks}
+    page={locationResult.page}
+    totalPages={locationResult.totalPages}
+    total={locationResult.total}
+    pageSize={LISTING_PAGE_SIZE}
+    paginationBasePath={paginationBase}
+    nearMeActive={false}
+  />
+
+  {locationResult.page === 1 && (
+    <section class="section listing-faq" aria-label="Domande su costi e preventivo">
+      <div class="listing-faq__inner">
+        <h2>Preventivo notaio a {locationLabel}: domande frequenti</h2>
+        <p class="listing-faq__lead">
+          Risposte pratiche su costi, calcolo del preventivo e come confrontare gli studi in zona.
+        </p>
+        <div class="faq-list">
+          {citySeo.faqs.map((faq) => (
+            <details>
+              <summary>{faq.question}</summary>
+              <p>{faq.answer}</p>
+            </details>
+          ))}
+        </div>
+        <div class="listing-faq__actions">
+          <a class="btn blue" rel="nofollow" href={preventivoBase}>Richiedi preventivo</a>
+          <a class="btn secondary" href={firstHomeLocalHref}>Costo acquisto prima casa</a>
+        </div>
+      </div>
+    </section>
+  )}
+</BaseLayout>

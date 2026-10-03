@@ -1,41 +1,59 @@
 ---
-import AdminTestNav from '../../components/AdminTestNav.astro';
+import AdminShell from '../../components/AdminShell.astro';
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import { isAdminAuthenticated } from '../../lib/admin';
+import { getAdminEmail, isAdminAuthenticated } from '../../lib/admin';
 import { listAdminServices } from '../../lib/admin-data';
 import { euro } from '../../lib/format';
+
+export const prerender = false;
 
 if (!isAdminAuthenticated(Astro.cookies)) {
   return Astro.redirect('/admin/login?next=/admin-test/tassonomia');
 }
 
+const adminEmail = getAdminEmail(Astro.cookies) || '';
+
 const services = await listAdminServices(200);
 ---
 <BaseLayout title="Tassonomia | Admin test" noindex={true}>
-  <section class="section">
+  <AdminShell current="taxonomy" adminEmail={adminEmail}>
+  <div class="admin-page">
     <div class="section-heading">
       <span class="eyebrow">Admin test</span>
       <h1>Tassonomia servizi</h1>
-      <p>Servizi usati per quanto-costa, funnel preventivo e intake pratica.</p>
+      <p>Servizi usati per quanto-costa, funnel preventivo e intake pratica. I contenuti HTML sono editabili.</p>
     </div>
-    <AdminTestNav current="tassonomia" />
+    
     <div class="list">
       {services.map((service) => (
         <article class="card admin-request">
           <div class="admin-request__head">
             <div>
               <h2>{service.plain_language_name || service.name}</h2>
-              <p>{service.category || 'Senza categoria'} · slug <code>{service.slug}</code></p>
+              <p>
+                {service.category || 'Senza categoria'} · slug <code>{service.slug}</code>
+                {' · '}<strong>{service.record_kind}</strong>
+                {service.canonical_slug ? ` → ${service.canonical_slug}` : ''}
+                {!service.is_searchable ? ' · fuori da ricerca/funnel' : ''}
+              </p>
             </div>
-            <a class="btn secondary" href={`/quanto-costa/${service.slug}`}>Pagina pubblica</a>
+            <div class="funnel-actions">
+              {service.record_kind === 'service' && service.is_searchable && (
+                <a class="btn secondary" href={`/quanto-costa/${service.slug}`}>Pagina pubblica</a>
+              )}
+              <a class="btn" href={`/admin-test/tassonomia/${service.slug}`}>Modifica contenuto</a>
+            </div>
           </div>
           <div class="summary-grid">
             <div><span>Prezzo medio</span><strong>{euro(service.price_avg_cents)}</strong></div>
             <div><span>Complessità</span><strong>{service.complexity || '—'}</strong></div>
-            <div><span>Documenti in tassonomia</span><strong>{service.docs_count}</strong></div>
+            <div><span>Documenti</span><strong>{service.docs_count}</strong></div>
+            <div><span>Contenuto</span><strong>{service.has_html ? (service.content_status || 'ok') : 'manca'}</strong></div>
+            <div><span>Immagine</span><strong>{service.has_image ? 'sì' : 'no'}</strong></div>
           </div>
         </article>
       ))}
     </div>
-  </section>
+  </div>
+  </AdminShell>
 </BaseLayout>

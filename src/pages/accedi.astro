@@ -1,0 +1,65 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { getClientEmail } from '../lib/client-auth';
+import { getNotaryEmail } from '../lib/notary-auth';
+
+export const prerender = false;
+
+const clientEmail = getClientEmail(Astro.cookies);
+const notaryEmail = getNotaryEmail(Astro.cookies);
+if (clientEmail) return Astro.redirect('/area-clienti/richieste');
+if (notaryEmail) return Astro.redirect('/area-notai/scheda');
+
+const isRegister = Astro.url.searchParams.get('mode') === 'register';
+const modeQuery = isRegister ? '?mode=register' : '';
+---
+<BaseLayout
+  title={`${isRegister ? 'Registrati' : 'Accedi'} | NotaioGiusto.it`}
+  description="Accedi o registrati nell’area clienti o nell’area riservata agli studi notarili."
+  noindex={true}
+  canonicalPath="/accedi"
+>
+  <section class="access-hub">
+    <div class="access-hub__intro">
+      <span class="eyebrow">{isRegister ? 'Registrazione' : 'Accesso'}</span>
+      <h1>{isRegister ? 'Crea il tuo account' : 'Accedi a NotaioGiusto.it'}</h1>
+      <p>
+        Scegli l’area corretta. Puoi continuare con Google oppure usare email e password.
+      </p>
+      <div class="access-hub__switch" aria-label="Scegli accesso o registrazione">
+        <a class={!isRegister ? 'is-active' : ''} href="/accedi">Accedi</a>
+        <a class={isRegister ? 'is-active' : ''} rel="nofollow" href="/accedi?mode=register">Registrati</a>
+      </div>
+    </div>
+
+    <div class="access-choice-grid">
+      <article class="access-choice-card access-choice-card--client">
+        <span class="access-choice-card__label">Privati e aziende</span>
+        <h2>Area clienti</h2>
+        <p>Consulta richieste di preventivo, pratiche e notai selezionati.</p>
+        <ul>
+          <li>Storico delle richieste</li>
+          <li>Fascicolo immobili e documenti</li>
+          <li>Accesso con Google o password</li>
+        </ul>
+        <a class="btn blue" rel={modeQuery ? 'nofollow' : undefined} href={`/area-clienti/accedi${modeQuery}`}>
+          {isRegister ? 'Registrati come cliente' : 'Accedi come cliente'}
+        </a>
+      </article>
+
+      <article class="access-choice-card access-choice-card--notary">
+        <span class="access-choice-card__label">Notai e studi notarili</span>
+        <h2>Area notai</h2>
+        <p>Gestisci la scheda dello studio e le richieste collegate.</p>
+        <ul>
+          <li>Aggiornamento della scheda</li>
+          <li>Gestione richieste preventivo</li>
+          <li>Accesso con Google o password</li>
+        </ul>
+        <a class="btn navy" rel={modeQuery ? 'nofollow' : undefined} href={`/area-notai/accedi${modeQuery}`}>
+          {isRegister ? 'Registra lo studio' : 'Accedi come notaio'}
+        </a>
+      </article>
+    </div>
+  </section>
+</BaseLayout>

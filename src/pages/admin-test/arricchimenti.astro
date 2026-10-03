@@ -1,12 +1,16 @@
 ---
-import AdminTestNav from '../../components/AdminTestNav.astro';
+import AdminShell from '../../components/AdminShell.astro';
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import { isAdminAuthenticated } from '../../lib/admin';
+import { getAdminEmail, isAdminAuthenticated } from '../../lib/admin';
 import { getAdminOverview, getEnrichmentBreakdown } from '../../lib/admin-data';
+
+export const prerender = false;
 
 if (!isAdminAuthenticated(Astro.cookies)) {
   return Astro.redirect('/admin/login?next=/admin-test/arricchimenti');
 }
+
+const adminEmail = getAdminEmail(Astro.cookies) || '';
 
 const [stats, breakdown] = await Promise.all([getAdminOverview(), getEnrichmentBreakdown()]);
 const published = Number(stats.notaries) || 1;
@@ -20,7 +24,8 @@ const coverage = [
 ];
 ---
 <BaseLayout title="Arricchimenti | Admin test" noindex={true}>
-  <section class="section">
+  <AdminShell current="notaries" adminEmail={adminEmail}>
+  <div class="admin-page">
     <div class="section-heading">
       <span class="eyebrow">Admin test</span>
       <h1>Arricchimenti</h1>
@@ -29,7 +34,7 @@ const coverage = [
         ufficiale Notariato vs dato arricchito vs servizio dichiarato/probabile.
       </p>
     </div>
-    <AdminTestNav current="arricchimenti" />
+    
 
     <div class="admin-stats-grid">
       {coverage.map((item) => (
@@ -53,5 +58,6 @@ const coverage = [
         {!breakdown.length && <div class="notice">Nessun enrichment ancora registrato in tabella dedicata.</div>}
       </div>
     </div>
-  </section>
+  </div>
+  </AdminShell>
 </BaseLayout>

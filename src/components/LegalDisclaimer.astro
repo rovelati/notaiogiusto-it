@@ -1,0 +1,37 @@
+---
+/**
+ * Disclaimer legale compatto (preventivo / quanto-costa).
+ * variant: inline = una riga; compact = blocco minimo sotto CTA.
+ */
+const { variant = 'inline' } = Astro.props as { variant?: 'inline' | 'compact' };
+---
+<p class={`legal-disclaimer legal-disclaimer--${variant}`}>
+  Range e richieste sono informativi: il preventivo ufficiale lo emette lo studio dopo le verifiche di legge.
+  Compensi liberalizzati; nessun procacciamento d’affari.
+  <a href="/note-legali">Note legali</a>
+</p>
+
+<style>
+  .legal-disclaimer {
+    margin: 0;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.45;
+    font-weight: 600;
+    max-width: 62ch;
+  }
+  .legal-disclaimer a {
+    color: var(--brand);
+    font-weight: 850;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .legal-disclaimer--inline {
+    margin-top: 10px;
+  }
+  .legal-disclaimer--compact {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  }
+</style>

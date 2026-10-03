@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import random
+import re
 import time
 from pathlib import Path
 
@@ -30,7 +31,13 @@ def save_state(path: Path, state: dict) -> None:
     tmp.replace(path)
 
 
-def fetch_notaries(conn, limit: int | None, offset: int, retry_failed: bool) -> list[dict]:
+def fetch_notaries(
+    conn,
+    limit: int | None,
+    offset: int,
+    retry_failed: bool,
+    comune: str | None = None,
+) -> list[dict]:
     where = """
         n.status = 'published'
         and n.comune is not null
@@ -41,21 +48,71 @@ def fetch_notaries(conn, limit: int | None, offset: int, retry_failed: bool) -> 
                 where e.notary_id = n.id and e.source = 'virgilio'
             )
         )
+        and (%s = '' or lower(coalesce(n.comune, '')) = lower(%s))
     """
     sql = f"""
         select n.id, n.full_name, n.source_slug, n.comune, n.phone, n.email, n.pec
         from notai.notaries n
         where {where}
-        order by n.imported_at asc
+        order by
+          case when %s <> '' and lower(coalesce(n.comune, '')) = lower(%s) then 0 else 1 end,
+          n.imported_at asc
         offset %s
     """
-    params: list = [retry_failed, offset]
+    city = (comune or "").strip()
+    params: list = [retry_failed, city, city, city, city, offset]
     if limit is not None:
         sql += " limit %s"
         params.append(limit)
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute(sql, params)
         return list(cur.fetchall())
+
+
+_COMUNE_CANDIDATE_CACHE: dict[str, list[str]] = {}
+
+
+def discover_candidates_cached(comune: str, candidate_limit: int) -> list[str]:
+    key = (comune or "").strip().lower()
+    if key not in _COMUNE_CANDIDATE_CACHE:
+        _COMUNE_CANDIDATE_CACHE[key] = discover_from_search(comune, max(candidate_limit, 120))
+    return list(_COMUNE_CANDIDATE_CACHE[key][:candidate_limit])
+
+
+def rank_candidates_by_name(notary: dict, urls: list[str]) -> list[str]:
+    """Prioritizza URL il cui slug contiene pezzi del nome del notaio."""
+    tokens = [
+        token
+        for token in re.findall(r"[a-zàèéìòù]+", (notary.get("full_name") or "").lower())
+        if len(token) >= 4 and token not in {"notaio", "notai", "studio", "notarile"}
+    ]
+    if not tokens:
+        return urls
+
+    def score(url: str) -> int:
+        slug = url.lower()
+        return sum(1 for token in tokens if token in slug)
+
+    return sorted(urls, key=score, reverse=True)
+
+
+def select_candidates_for_notary(notary: dict, urls: list[str], max_tries: int = 8) -> list[str]:
+    """Limita i fetch scheda: prima slug con nome, altrimenti pochi candidati generici."""
+    ranked = rank_candidates_by_name(notary, urls)
+    tokens = [
+        token
+        for token in re.findall(r"[a-zàèéìòù]+", (notary.get("full_name") or "").lower())
+        if len(token) >= 4 and token not in {"notaio", "notai", "studio", "notarile"}
+    ]
+
+    def score(url: str) -> int:
+        slug = url.lower()
+        return sum(1 for token in tokens if token in slug)
+
+    named = [url for url in ranked if score(url) > 0]
+    if named:
+        return named[:max_tries]
+    return ranked[: min(3, max_tries)]
 
 
 def sleep_between(min_delay: float, max_delay: float) -> None:
@@ -68,6 +125,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Batch arricchimento Virgilio per notai.")
     parser.add_argument("--limit", type=int, default=50)
     parser.add_argument("--offset", type=int, default=0)
+    parser.add_argument("--comune", default="", help="Filtro/priorità comune (es. Milano).")
     parser.add_argument("--candidate-limit", type=int, default=10)
     parser.add_argument("--threshold", type=int, default=70)
     parser.add_argument("--apply", action="store_true")
@@ -86,9 +144,20 @@ def main() -> int:
     stats = {"selected": 0, "processed": 0, "matched": 0, "no_match": 0, "errors": 0}
 
     with db_connect() as conn:
-        notaries = fetch_notaries(conn, args.limit, args.offset, args.retry_failed)
+        notaries = fetch_notaries(conn, args.limit, args.offset, args.retry_failed, args.comune)
         stats["selected"] = len(notaries)
-        print(json.dumps({"event": "batch_start", "selected": len(notaries), "apply": args.apply}, ensure_ascii=False), flush=True)
+        print(
+            json.dumps(
+                {
+                    "event": "batch_start",
+                    "selected": len(notaries),
+                    "apply": args.apply,
+                    "comune": args.comune or None,
+                },
+                ensure_ascii=False,
+            ),
+            flush=True,
+        )
 
         for index, notary in enumerate(notaries, start=1):
             notary_id = str(notary["id"])
@@ -103,16 +172,18 @@ def main() -> int:
                 flush=True,
             )
             try:
-                candidates = discover_from_search(notary["comune"], args.candidate_limit)
+                candidates = discover_candidates_cached(notary["comune"], args.candidate_limit)
                 unique: list[str] = []
                 seen: set[str] = set()
-                for candidate in candidates:
+                for candidate in select_candidates_for_notary(notary, candidates, max_tries=8):
                     normalized = normalize_virgilio_url(candidate) or candidate
                     if normalized not in seen:
                         seen.add(normalized)
                         unique.append(normalized)
 
                 results = []
+                if not unique:
+                    stats["no_match"] += 1
                 for candidate_url in unique:
                     result = enrich_one(conn, notary, candidate_url, args.threshold, args.apply)
                     results.append(result)
@@ -121,7 +192,7 @@ def main() -> int:
                         break
                     sleep_between(args.min_delay, args.max_delay)
 
-                if not any(r.get("match") for r in results):
+                if unique and not any(r.get("match") for r in results):
                     stats["no_match"] += 1
 
                 stats["processed"] += 1
@@ -131,7 +202,11 @@ def main() -> int:
                     save_state(state_path, state)
 
                 print(
-                    json.dumps({"event": "notary_done", "id": notary_id, "candidate_count": len(unique), "results": results}, ensure_ascii=False, default=str),
+                    json.dumps(
+                        {"event": "notary_done", "id": notary_id, "candidate_count": len(unique), "results": results},
+                        ensure_ascii=False,
+                        default=str,
+                    ),
                     flush=True,
                 )
             except Exception as exc:

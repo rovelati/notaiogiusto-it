@@ -1,0 +1,65 @@
+---
+const {
+  page = 1,
+  totalPages = 1,
+  total = 0,
+  basePath = '',
+  pageSize = 10,
+} = Astro.props as {
+  page?: number;
+  totalPages?: number;
+  total?: number;
+  basePath?: string;
+  pageSize?: number;
+};
+
+function pageHref(target: number) {
+  const url = new URL(basePath || '/', 'https://www.notaiogiusto.it');
+  if (target <= 1) url.searchParams.delete('page');
+  else url.searchParams.set('page', String(target));
+  const qs = url.searchParams.toString();
+  return `${url.pathname}${qs ? `?${qs}` : ''}`;
+}
+
+const show = totalPages > 1 && total > pageSize;
+const pages = Array.from({ length: totalPages }, (_, i) => i + 1).filter((p) => {
+  if (totalPages <= 7) return true;
+  if (p === 1 || p === totalPages) return true;
+  return Math.abs(p - page) <= 1;
+});
+---
+{show && (
+  <nav class="listing-pagination" aria-label="Paginazione risultati">
+    <p class="listing-pagination__meta">
+      Pagina <strong>{page}</strong> di <strong>{totalPages}</strong>
+      <span>· {total} studi in elenco</span>
+    </p>
+    <div class="listing-pagination__links">
+      {page > 1 && (
+        <a
+          href={pageHref(page - 1)}
+          rel={page - 1 > 1 ? 'nofollow prev' : 'prev'}
+        >
+          Precedente
+        </a>
+      )}
+      {pages.map((p, index) => {
+        const prev = pages[index - 1];
+        const gap = prev != null && p - prev > 1;
+        return (
+          <>
+            {gap && <span class="listing-pagination__gap">…</span>}
+            {p === page ? (
+              <span class="is-current" aria-current="page">{p}</span>
+            ) : (
+              <a href={pageHref(p)} rel={p > 1 ? 'nofollow' : undefined}>{p}</a>
+            )}
+          </>
+        );
+      })}
+      {page < totalPages && (
+        <a href={pageHref(page + 1)} rel="nofollow next">Successiva</a>
+      )}
+    </div>
+  </nav>
+)}

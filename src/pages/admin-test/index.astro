@@ -1,13 +1,16 @@
 ---
-import AdminTestNav from '../../components/AdminTestNav.astro';
+import AdminShell from '../../components/AdminShell.astro';
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import { isAdminAuthenticated } from '../../lib/admin';
+import { getAdminEmail, isAdminAuthenticated } from '../../lib/admin';
 import { getAdminOverview } from '../../lib/admin-data';
+
+export const prerender = false;
 
 if (!isAdminAuthenticated(Astro.cookies)) {
   return Astro.redirect('/admin/login?next=/admin-test');
 }
 
+const adminEmail = getAdminEmail(Astro.cookies) || '';
 const stats = await getAdminOverview();
 const cards = [
   { label: 'Notai pubblicati', value: stats.notaries },
@@ -26,14 +29,12 @@ const cards = [
   { label: 'Link notaio↔servizio', value: stats.notary_services_links },
 ];
 ---
-<BaseLayout title="Admin test | NotaioGiusto.it" noindex={true}>
-  <section class="section">
+<BaseLayout title="Admin test | NotaioGiusto.it" noindex={true} canonicalPath="/admin-test">
+  <AdminShell current="stats" adminEmail={adminEmail}>
     <div class="section-heading">
-      <span class="eyebrow">Admin test</span>
-      <h1>Situazione operativa</h1>
-      <p>Vista sintetica su arricchimenti, preventivi, clienti e claim — stile console ops di Veterinari.org.</p>
+      <h2>Statistiche</h2>
+      <p>Panoramica operativa: arricchimenti, preventivi, clienti e claim.</p>
     </div>
-    <AdminTestNav current="overview" />
     <div class="admin-stats-grid">
       {cards.map((card) => (
         <div class="stat">
@@ -42,5 +43,5 @@ const cards = [
         </div>
       ))}
     </div>
-  </section>
+  </AdminShell>
 </BaseLayout>

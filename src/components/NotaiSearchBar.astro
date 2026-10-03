@@ -1,0 +1,113 @@
+---
+import { CAPOLUOGHI, canonicalNotaiCityPath } from '../lib/locations';
+import { getAllServices } from '../lib/notai';
+
+const {
+  action = '/notai',
+  q = '',
+  comune = '',
+  servizio = '',
+  variant = 'panel',
+} = Astro.props as {
+  action?: string;
+  q?: string;
+  comune?: string;
+  servizio?: string;
+  variant?: 'panel' | 'hero' | 'compact';
+};
+
+const cityHints = CAPOLUOGHI.map((city) => ({
+  name: city.name,
+  path: canonicalNotaiCityPath(city.name, city.province),
+}));
+const serviceOptions = (await getAllServices()).map((service) => ({
+  slug: service.slug,
+  name: service.plain_language_name || service.name,
+  category: service.category || '',
+  terms: [...new Set((service.search_terms || []).map((term) => term.term))],
+}));
+const serviceOptionsJson = JSON.stringify(serviceOptions).replace(/</g, '\\u003c');
+---
+<form
+  class={`notai-search notai-search--${variant}`}
+  action={action}
+  method="get"
+  data-notai-search
+  data-city-hints={JSON.stringify(cityHints)}
+>
+  <input type="hidden" name="servizio" value={servizio} data-service-autocomplete-slug />
+  <script type="application/json" data-service-autocomplete-options set:html={serviceOptionsJson}></script>
+  <div class="notai-search__fields">
+    <div class="notai-search__field service-autocomplete" data-service-autocomplete>
+      <label for={`notai-search-q-${variant}`}>Cosa cerchi?</label>
+      <input
+        id={`notai-search-q-${variant}`}
+        type="search"
+        name="q"
+        value={q}
+        autocomplete="off"
+        placeholder="Es. Rossi, successione, copia conforme..."
+        data-service-autocomplete-input
+      />
+      <div class="service-autocomplete__list" data-service-autocomplete-list hidden></div>
+    </div>
+    <label class="notai-search__field notai-search__field--where">
+      <span>Dove?</span>
+      <input
+        type="search"
+        name="comune"
+        value={comune}
+        autocomplete="off"
+        placeholder="Es. Milano"
+        data-comune-input
+      />
+    </label>
+    <button class="notai-search__submit" type="submit">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <circle cx="11" cy="11" r="7"></circle>
+        <path d="m20 20-3.5-3.5"></path>
+      </svg>
+      Cerca
+    </button>
+    <button
+      class="near-me-btn notai-search__near"
+      type="button"
+      data-near-me
+      data-near-me-base="/notai"
+      aria-live="polite"
+    >
+      Vicino a me
+    </button>
+  </div>
+</form>
+
+<script src="/js/service-autocomplete.js" defer></script>
+<script>
+  function normalize(value: string) {
+    return value
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
+  }
+
+  document.querySelectorAll<HTMLFormElement>('[data-notai-search]').forEach((form) => {
+    form.addEventListener('submit', (event) => {
+      const q = String(new FormData(form).get('q') || '').trim();
+      const servizio = String(new FormData(form).get('servizio') || '').trim();
+      const comune = String(new FormData(form).get('comune') || '').trim();
+      if (!comune || q || servizio) return;
+
+      let hints: Array<{ name: string; path: string }> = [];
+      try {
+        hints = JSON.parse(form.dataset.cityHints || '[]');
+      } catch {
+        hints = [];
+      }
+      const hit = hints.find((item) => normalize(item.name) === normalize(comune));
+      if (!hit?.path) return;
+      event.preventDefault();
+      window.location.href = hit.path;
+    });
+  });
+</script>

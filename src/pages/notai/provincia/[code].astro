@@ -1,0 +1,250 @@
+---
+import ListingPagination from '../../../components/ListingPagination.astro';
+import NotaiListingMap from '../../../components/NotaiListingMap.astro';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { titleCase } from '../../../lib/format';
+import {
+  CAPOLUOGHI,
+  SEO_SERVICE_LINKS,
+} from '../../../lib/locations';
+import {
+  canonicalNotaiProvincePath,
+  searchNotariesInProvince,
+} from '../../../lib/sitemap-locations';
+import { shouldNoindexListingUrl } from '../../../lib/site';
+
+export const prerender = false;
+
+const code = String(Astro.params.code || '')
+  .trim()
+  .toLowerCase()
+  .replace(/[^a-z]/g, '')
+  .slice(0, 2);
+
+if (!code || code.length !== 2) {
+  return Astro.redirect('/notai', 302);
+}
+
+const page = Math.max(1, Number(Astro.url.searchParams.get('page') || '1') || 1);
+const canonical = canonicalNotaiProvincePath(code);
+if (Astro.url.pathname.replace(/\/+$/, '') !== canonical) {
+  return Astro.redirect(canonical, 301);
+}
+
+const result = await searchNotariesInProvince(code, 24, page);
+if (!result.cities.length) {
+  return Astro.redirect('/notai', 302);
+}
+
+const provinceName =
+  CAPOLUOGHI.find((item) => item.province === code.toUpperCase())?.name || code.toUpperCase();
+const noindex = page > 1 || shouldNoindexListingUrl(Astro.url);
+const title = `Notai in provincia di ${provinceName}: studi e preventivi | NotaioGiusto.it`;
+const description = `Elenco notai in provincia di ${provinceName}: ${result.total} studi in ${result.cities.length} comuni. Confronta le schede e chiedi preventivi.`;
+const hubCity =
+  result.cities.find((city) => city.name.toLowerCase() === provinceName.toLowerCase()) ||
+  result.cities[0];
+const serviceLinks = SEO_SERVICE_LINKS.slice(0, 8).map((service) => ({
+  label: `${service.label} a ${hubCity.name}`,
+  href: `/quanto-costa/${hubCity.locationSlug}/${service.slug}/notai`,
+}));
+const startRank = (result.page - 1) * 24;
+const mapPoints = result.notaries
+  .filter((notary) => Number.isFinite(notary.lat) && Number.isFinite(notary.lng))
+  .map((notary, index) => ({
+    id: notary.id,
+    name: titleCase(notary.full_name),
+    slug: notary.source_slug,
+    address: [notary.address, notary.comune ? titleCase(notary.comune) : null]
+      .filter(Boolean)
+      .join(' · '),
+    lat: Number(notary.lat),
+    lng: Number(notary.lng),
+    rank: startRank + index + 1,
+  }));
+const officialCount = result.notaries.filter((notary) => notary.is_official_notariato).length;
+---
+<BaseLayout title={title} description={description} canonicalPath={canonical} noindex={noindex}>
+  <section class="search-results-hero">
+    <span class="eyebrow">Notai · provincia {code.toUpperCase()}</span>
+    <h1>Notai in provincia di {provinceName}</h1>
+    <p class="lead">
+      Confronta {result.total} studi in {result.cities.length} comuni, visualizzali sulla mappa
+      e richiedi un preventivo senza contattare ogni studio separatamente.
+    </p>
+    <div class="result-context province-hero-context">
+      <span><strong>{result.total} studi</strong></span>
+      <span><strong>{result.cities.length} comuni</strong></span>
+      <a rel="nofollow" href={`/preventivo?step=1&comune=${encodeURIComponent(hubCity.name)}`}>Richiedi preventivo</a>
+    </div>
+  </section>
+
+  <section class="section province-city-picker" aria-labelledby="province-cities-title">
+    <div class="section-heading">
+      <h2 id="province-cities-title">Scegli un comune</h2>
+      <p>Restringi la ricerca alla città.</p>
+    </div>
+    <div class="city-chip-grid">
+      {result.cities.slice(0, 48).map((city) => (
+        <a class="city-chip" href={city.path}>
+          {city.name}
+          <span>{city.notaryCount} {city.notaryCount === 1 ? 'studio' : 'studi'} →</span>
+        </a>
+      ))}
+    </div>
+  </section>
+
+  <section class="section province-results" aria-labelledby="province-results-title">
+    <div class="section-heading">
+      <h2 id="province-results-title">Studi in provincia di {provinceName}</h2>
+      <p>
+        Pagina {result.page} di {result.totalPages}. Mappa e numeri corrispondono agli studi
+        mostrati nell’elenco.
+      </p>
+    </div>
+
+    {officialCount > 0 && (
+      <p class="listing-source-note">
+        <span class="official-mark" aria-hidden="true">Ufficiale</span>
+        Dati anagrafici da fonti del Consiglio Nazionale del Notariato
+      </p>
+    )}
+
+    <div class="listing-layout province-listing-layout">
+      <div class="province-map-column">
+        <NotaiListingMap
+          points={mapPoints}
+          locationLabel={`Provincia di ${provinceName}`}
+          emptyTitle="Mappa non disponibile"
+          emptyText="Gli studi di questa pagina non hanno ancora coordinate verificate."
+        />
+
+        <div class="card province-quick-filter">
+          <label for="province-notary-filter">Ricerca veloce</label>
+          <input
+            id="province-notary-filter"
+            type="search"
+            inputmode="search"
+            autocomplete="off"
+            placeholder="Nome, comune o indirizzo"
+            data-province-filter
+          />
+          <p class="helper-text" data-province-filter-count>
+            Filtra i {result.notaries.length} studi di questa pagina.
+          </p>
+          <button
+            class="near-me-btn province-quick-filter__near"
+            type="button"
+            data-near-me
+            data-near-me-base="/notai"
+            aria-live="polite"
+          >
+            Vicino a me
+          </button>
+        </div>
+      </div>
+
+      <div class="list result-list">
+        {result.notaries.map((notary, index) => {
+          const notaryName = titleCase(notary.full_name);
+          const cityName = notary.comune ? titleCase(notary.comune) : '';
+          const quoteHref =
+            `/preventivo?step=1&notary=${encodeURIComponent(notary.id)}` +
+            (cityName ? `&comune=${encodeURIComponent(cityName)}` : '');
+          return (
+            <article
+              class="card notary-result-row"
+              id={`notary-${notary.id}`}
+              data-province-notary
+            >
+              <div>
+                <div class="result-title-row">
+                  <span class="result-rank">{startRank + index + 1}</span>
+                  <h3><a href={`/notai/${notary.source_slug}`}>{notaryName}</a></h3>
+                  {notary.is_official_notariato ? (
+                    <span
+                      class="official-mark"
+                      title="Fonte ufficiale Consiglio Nazionale del Notariato"
+                    >
+                      Ufficiale
+                    </span>
+                  ) : null}
+                </div>
+                <address>
+                  {notary.address || 'Indirizzo non disponibile'}
+                  {cityName ? ` · ${cityName}` : ''}
+                </address>
+              </div>
+              <div class="actions">
+                {notary.phone ? (
+                  <a class="btn navy" href={`tel:${notary.phone}`}>Chiama</a>
+                ) : null}
+                <a class="btn blue" rel="nofollow" href={quoteHref}>Preventivo</a>
+                <a class="btn secondary" href={`/notai/${notary.source_slug}`}>Scheda</a>
+              </div>
+            </article>
+          );
+        })}
+        <div class="notice" data-province-filter-empty hidden>
+          Nessuno studio corrisponde alla ricerca in questa pagina.
+        </div>
+        <ListingPagination
+          page={result.page}
+          totalPages={result.totalPages}
+          total={result.total}
+          pageSize={24}
+          basePath={canonical}
+        />
+      </div>
+    </div>
+  </section>
+
+  <section class="section soft">
+    <div class="section-heading">
+      <h2>Pratiche notarili richieste a {hubCity.name}</h2>
+      <p>Consulta costi indicativi e documenti necessari prima di chiedere un preventivo.</p>
+    </div>
+    <div class="seo-link-grid">
+      {serviceLinks.map((link) => (
+        <a class="seo-link-card" href={link.href}>
+          <strong>{link.label}</strong>
+          <span>Costi, documenti e notai →</span>
+        </a>
+      ))}
+    </div>
+  </section>
+</BaseLayout>
+
+<script>
+  const filterInput = document.querySelector<HTMLInputElement>('[data-province-filter]');
+  const filterCount = document.querySelector<HTMLElement>('[data-province-filter-count]');
+  const emptyState = document.querySelector<HTMLElement>('[data-province-filter-empty]');
+  const notaryCards = Array.from(
+    document.querySelectorAll<HTMLElement>('[data-province-notary]'),
+  );
+
+  const normalize = (value: string) =>
+    value
+      .normalize('NFD')
+      .replace(/\p{Diacritic}/gu, '')
+      .toLocaleLowerCase('it')
+      .trim();
+
+  filterInput?.addEventListener('input', () => {
+    const query = normalize(filterInput.value);
+    let visible = 0;
+
+    notaryCards.forEach((card) => {
+      const matches = !query || normalize(card.textContent || '').includes(query);
+      card.hidden = !matches;
+      if (matches) visible += 1;
+    });
+
+    if (filterCount) {
+      filterCount.textContent = query
+        ? `${visible} ${visible === 1 ? 'studio trovato' : 'studi trovati'} in questa pagina.`
+        : `Filtra i ${notaryCards.length} studi di questa pagina.`;
+    }
+    if (emptyState) emptyState.hidden = visible > 0;
+  });
+</script>

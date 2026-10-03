@@ -42,7 +42,13 @@ def save_state(path: Path, state: dict) -> None:
     tmp.replace(path)
 
 
-def fetch_notaries(conn, limit: int | None, offset: int, retry_failed: bool) -> list[dict]:
+def fetch_notaries(
+    conn,
+    limit: int | None,
+    offset: int,
+    retry_failed: bool,
+    comune: str | None = None,
+) -> list[dict]:
     where = """
         n.status = 'published'
         and n.comune is not null
@@ -53,15 +59,19 @@ def fetch_notaries(conn, limit: int | None, offset: int, retry_failed: bool) -> 
                 where e.notary_id = n.id and e.source = 'paginegialle'
             )
         )
+        and (%s = '' or lower(coalesce(n.comune, '')) = lower(%s))
     """
     sql = f"""
         select n.id, n.full_name, n.source_slug, n.comune, n.phone, n.email, n.pec
         from notai.notaries n
         where {where}
-        order by n.imported_at asc
+        order by
+          case when %s <> '' and lower(coalesce(n.comune, '')) = lower(%s) then 0 else 1 end,
+          n.imported_at asc
         offset %s
     """
-    params: list = [retry_failed, offset]
+    city = (comune or "").strip()
+    params: list = [retry_failed, city, city, city, city, offset]
     if limit is not None:
         sql += " limit %s"
         params.append(limit)
@@ -84,8 +94,12 @@ def discover_candidates(notary: dict, candidate_limit: int, search_mode: str) ->
     candidates: list[str] = []
     if search_mode in {"name", "both"}:
         candidates.extend(discover_from_search(f"{notary['full_name']} {notary['comune']}", candidate_limit))
-    if len(candidates) < candidate_limit and search_mode in {"category", "both"}:
-        candidates.extend(discover_from_search(notary["comune"], candidate_limit))
+    if len(candidates) < candidate_limit and search_mode in {"category", "both", "name"}:
+        # name-only su PG spesso torna 0: fallback comune / "notai {comune}"
+        if search_mode != "name" or not candidates:
+            candidates.extend(discover_from_search(f"notai {notary['comune']}", candidate_limit))
+        if len(candidates) < candidate_limit:
+            candidates.extend(discover_from_search(notary["comune"], candidate_limit))
 
     seen: set[str] = set()
     unique: list[str] = []
@@ -104,6 +118,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Batch arricchimento PagineGialle per notai.")
     parser.add_argument("--limit", type=int, default=50)
     parser.add_argument("--offset", type=int, default=0)
+    parser.add_argument("--comune", default="", help="Priorità/filtro comune (es. Milano).")
     parser.add_argument("--candidate-limit", type=int, default=6)
     parser.add_argument("--threshold", type=int, default=70)
     parser.add_argument("--apply", action="store_true")
@@ -131,9 +146,15 @@ def main() -> int:
     }
 
     with db_connect() as conn:
-        notaries = fetch_notaries(conn, args.limit, args.offset, args.retry_failed)
+        notaries = fetch_notaries(conn, args.limit, args.offset, args.retry_failed, args.comune)
         stats["selected"] = len(notaries)
-        print(json.dumps({"event": "batch_start", "selected": len(notaries), "apply": args.apply}, ensure_ascii=False), flush=True)
+        print(
+            json.dumps(
+                {"event": "batch_start", "selected": len(notaries), "apply": args.apply, "comune": args.comune or None},
+                ensure_ascii=False,
+            ),
+            flush=True,
+        )
 
         for index, notary in enumerate(notaries, start=1):
             notary_id = str(notary["id"])
@@ -157,6 +178,8 @@ def main() -> int:
             try:
                 candidates = discover_candidates(notary, args.candidate_limit, args.search_mode)
                 results = []
+                if not candidates:
+                    stats["no_match"] += 1
                 for candidate_url in candidates:
                     result = enrich_one(conn, notary, candidate_url, args.threshold, args.apply)
                     results.append(result)
@@ -165,7 +188,7 @@ def main() -> int:
                         break
                     sleep_between(args.min_delay, args.max_delay)
 
-                if not any(r.get("match") for r in results):
+                if candidates and not any(r.get("match") for r in results):
                     stats["no_match"] += 1
 
                 stats["processed"] += 1
@@ -187,6 +210,9 @@ def main() -> int:
                     ),
                     flush=True,
                 )
+
+                if candidates:
+                    sleep_between(args.min_delay, args.max_delay)
 
             except Exception as exc:
                 error = str(exc)

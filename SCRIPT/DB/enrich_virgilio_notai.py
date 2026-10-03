@@ -127,7 +127,10 @@ def slugify_city(comune: str) -> str:
 def fetch_html(url: str, timeout: int = 35) -> str:
     resp = SESSION.get(url, timeout=timeout)
     resp.raise_for_status()
-    text = resp.text
+    try:
+        text = resp.content.decode("utf-8")
+    except UnicodeDecodeError:
+        text = resp.text
     low = text[:5000].lower()
     if any(marker in low for marker in ("captcha", "challenge-container", "access denied", "forbidden")) and len(text) < 30000:
         raise RuntimeError(f"Virgilio ha restituito pagina anti-bot/non valida per {url}")
@@ -154,18 +157,45 @@ def normalize_virgilio_url(href: str) -> str | None:
 
 
 def discover_from_search(comune: str, limit: int = 20) -> list[str]:
-    html_text = fetch_html(search_url(comune))
-    soup = BeautifulSoup(html_text, "lxml")
+    """Raccoglie schede aziende.virgilio.it dal listing comunale, seguendo la paginazione."""
+    first_url = search_url(comune)
+    to_visit = [first_url]
+    visited_pages: set[str] = set()
     urls: list[str] = []
     seen: set[str] = set()
-    for link in soup.select("a[href]"):
-        url = normalize_virgilio_url(link.get("href", ""))
-        if url and url not in seen:
-            seen.add(url)
-            urls.append(url)
+
+    while to_visit and len(urls) < limit:
+        page_url = to_visit.pop(0)
+        if page_url in visited_pages:
+            continue
+        visited_pages.add(page_url)
+        html_text = fetch_html(page_url)
+        soup = BeautifulSoup(html_text, "lxml")
+
+        for link in soup.select("a[href]"):
+            href = link.get("href", "")
+            detail = normalize_virgilio_url(href)
+            if detail and detail not in seen:
+                seen.add(detail)
+                urls.append(detail)
+                if len(urls) >= limit:
+                    break
+
         if len(urls) >= limit:
             break
-    return urls
+
+        # Pagine tipo /italia/milano/cat/NOTAI_STUDI_(2).html?...
+        for link in soup.select("a[href*='NOTAI_STUDI_']"):
+            href = link.get("href", "")
+            abs_url = urllib.parse.urljoin(page_url, href)
+            parsed = urllib.parse.urlparse(abs_url)
+            if "NOTAI_STUDI_" not in parsed.path:
+                continue
+            clean = urllib.parse.urlunparse((parsed.scheme, parsed.netloc, parsed.path, "", parsed.query, ""))
+            if clean not in visited_pages and clean not in to_visit:
+                to_visit.append(clean)
+
+    return urls[:limit]
 
 
 def text_or_empty(node) -> str:
@@ -399,24 +429,13 @@ def save_enrichment(conn, notary: dict, source_url: str, record: VirgilioRecord,
             for service in record.services or []:
                 cur.execute(
                     """
-                    insert into notai.services_taxonomy (slug, name, category, synonyms)
-                    values (%s, %s, %s, %s)
-                    on conflict (slug) do update set
-                        name = excluded.name,
-                        category = coalesce(notai.services_taxonomy.category, excluded.category),
-                        synonyms = case
-                            when notai.services_taxonomy.synonyms = '{}'::text[] then excluded.synonyms
-                            else notai.services_taxonomy.synonyms
-                        end
+                    select coalesce(source.canonical_service_id, source.id)
+                    from notai.services_taxonomy source
+                    where source.slug = %s
+                    limit 1
                     """,
-                    (
-                        service["slug"],
-                        service["slug"].replace("-", " ").capitalize(),
-                        "Servizi notarili",
-                        [service["evidence"]],
-                    ),
+                    (service["slug"],),
                 )
-                cur.execute("select id from notai.services_taxonomy where slug = %s", (service["slug"],))
                 row = cur.fetchone()
                 if not row:
                     continue

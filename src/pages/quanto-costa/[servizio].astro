@@ -1,61 +1,164 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import LegalDisclaimer from '../../components/LegalDisclaimer.astro';
 import { euro } from '../../lib/format';
-import { getService } from '../../lib/notai';
+import { CAPOLUOGHI, getMacroByName, macroCategory, macroCategoryPath, toLocationSlug } from '../../lib/locations';
+import { getRelatedServices, getService, getTopServices } from '../../lib/notai';
+import { FIRST_HOME_SEO } from '../../lib/seo-content';
+import { absoluteUrl } from '../../lib/site';
 
 const service = await getService(Astro.params.servizio || '');
 if (!service) return Astro.redirect('/quanto-costa');
+if (service.requested_slug && service.requested_slug !== service.slug) {
+  return Astro.redirect(`/quanto-costa/${service.slug}`, 301);
+}
+if (service.requested_is_searchable === false) return Astro.redirect('/quanto-costa', 301);
 const serviceName = service.plain_language_name || service.name;
-const title = service.seo_title || `${serviceName}: costo, documenti e preventivo notaio`;
-const description = service.seo_description || `${serviceName}: quando serve, documenti da preparare, prezzo indicativo e richiesta preventivo notarile.`;
+const macro = getMacroByName(service.category);
+const relatedRaw = await getRelatedServices(service.slug, 12);
+const related =
+  relatedRaw.length >= 3
+    ? relatedRaw.slice(0, 6)
+    : (await getTopServices(60))
+        .filter(
+          (item) =>
+            item.slug !== service.slug &&
+            macroCategory(item.category) === macroCategory(service.category),
+        )
+        .slice(0, 6);
+const featuredCities = CAPOLUOGHI.slice(0, 8);
+const isFirstHome = service.slug === 'acquisto-prima-casa';
+const rawTitle =
+  service.seo_title ||
+  (isFirstHome
+    ? 'Acquisto prima casa: costo notaio, documenti e preventivo'
+    : `${serviceName}: costo, documenti e preventivo notaio`);
+const title = rawTitle.replace(/\s*\(20\d{2}\)\s*$/i, '').trim();
+const description =
+  service.seo_description ||
+  service.description ||
+  (isFirstHome
+    ? 'Costo del notaio per acquisto prima casa: range indicativo, documenti, agevolazioni e richiesta preventivo a più studi.'
+    : `${serviceName}: quando serve, documenti da preparare, prezzo indicativo e richiesta preventivo notarile.`);
 const priceRange = `${euro(service.price_min_cents)} - ${euro(service.price_max_cents)}`;
 const isLowComplexity = service.complexity === 'bassa';
 const isCopyAuthentication = service.slug.includes('autentica') && service.slug.includes('copia');
-const defaultDocuments = isCopyAuthentication
-  ? ['Documento originale da cui ricavare la copia', 'Copia da autenticare, se gia preparata', 'Documento di identita e codice fiscale di chi richiede l autentica', 'Eventuali deleghe o riferimenti della pratica se la copia serve per un ente']
-  : ['Documento di identita e codice fiscale', 'Dati delle parti coinvolte', 'Documenti relativi alla pratica', 'Eventuali bozze, accordi o comunicazioni gia ricevute'];
+const defaultDocuments = isFirstHome
+  ? FIRST_HOME_SEO.documents
+  : isCopyAuthentication
+    ? ['Documento originale da cui ricavare la copia', 'Copia da autenticare, se gia preparata', 'Documento di identita e codice fiscale di chi richiede l autentica', 'Eventuali deleghe o riferimenti della pratica se la copia serve per un ente']
+    : ['Documento di identita e codice fiscale', 'Dati delle parti coinvolte', 'Documenti relativi alla pratica', 'Eventuali bozze, accordi o comunicazioni gia ricevute'];
 const documents = Array.isArray(service.required_documents) && service.required_documents.length
   ? service.required_documents.map((item) => String(item))
   : defaultDocuments;
-const intro = isCopyAuthentication
-  ? 'Serve quando devi presentare a un ente, a una banca o a un altro soggetto una copia conforme a un documento originale.'
-  : service.user_intent || `Serve per inquadrare correttamente la pratica notarile e ricevere un preventivo confrontabile da uno o piu studi.`;
-const practicalDescription = isCopyAuthentication
-  ? `L autentica di copia e l attestazione con cui il notaio dichiara che una copia corrisponde al documento originale mostrato. E una pratica normalmente semplice, ma il costo puo cambiare in base al numero di pagine, al tipo di documento, all urgenza e agli eventuali diritti o marche richieste. Prima di andare in studio conviene verificare se il notaio deve vedere l originale, quante copie servono e per quale uso verra presentata la copia.`
-  : `Questa pagina ti aiuta a capire il costo indicativo, quali informazioni preparare e come chiedere un preventivo notarile piu preciso. Il prezzo finale dipende dal tipo di atto, dal valore economico della pratica, dalle imposte, dalle verifiche necessarie e dalle tempistiche richieste.`;
-const priceFactors = isCopyAuthentication
-  ? ['Numero di pagine e copie richieste', 'Tipo di documento da autenticare', 'Urgenza della richiesta', 'Marche, diritti o spese vive applicabili']
-  : ['Valore economico della pratica', 'Numero di parti coinvolte', 'Verifiche e visure necessarie', 'Imposte, tasse e spese anticipate dal notaio'];
-const fallbackFaqs = isCopyAuthentication
-  ? [
-      {
-        question: 'Devo portare il documento originale?',
-        answer: 'Si, di norma il notaio deve confrontare la copia con l originale. Se hai solo una scansione o una foto, chiedi prima allo studio se e sufficiente per il tuo caso.',
-      },
-      {
-        question: 'Il prezzo e sempre fisso?',
-        answer: 'No. Per una copia semplice il costo e contenuto, ma puo variare per numero di pagine, urgenza, marche e diritti richiesti.',
-      },
-      {
-        question: 'Posso fare tutto online?',
-        answer: 'Spesso serve passare dallo studio o inviare prima i documenti per verifica. La disponibilita dipende dal notaio e dal tipo di documento.',
-      },
-    ]
-  : [
-      {
-        question: 'Il preventivo include anche tasse e imposte?',
-        answer: 'Dipende dal caso. Conviene chiedere sempre la distinzione tra compenso del notaio, imposte e spese vive.',
-      },
-      {
-        question: 'Posso confrontare piu notai?',
-        answer: 'Si. Una richiesta chiara e completa permette agli studi di rispondere con preventivi piu confrontabili.',
-      },
-      {
-        question: 'Quando devo andare fisicamente dal notaio?',
-        answer: 'Per molti atti la presenza e necessaria nella fase di firma. Alcune verifiche preliminari possono invece essere gestite a distanza.',
-      },
-    ];
+const intro = isFirstHome
+  ? FIRST_HOME_SEO.intro
+  : isCopyAuthentication
+    ? 'Serve quando devi presentare a un ente, a una banca o a un altro soggetto una copia conforme a un documento originale.'
+    : service.user_intent || `Serve per inquadrare correttamente la pratica notarile e ricevere un preventivo confrontabile da uno o piu studi.`;
+const practicalDescription = isFirstHome
+  ? FIRST_HOME_SEO.practicalDescription
+  : isCopyAuthentication
+    ? `L autentica di copia e l attestazione con cui il notaio dichiara che una copia corrisponde al documento originale mostrato. E una pratica normalmente semplice, ma il costo puo cambiare in base al numero di pagine, al tipo di documento, all urgenza e agli eventuali diritti o marche richieste. Prima di andare in studio conviene verificare se il notaio deve vedere l originale, quante copie servono e per quale uso verra presentata la copia.`
+    : `Questa pagina ti aiuta a capire il costo indicativo, quali informazioni preparare e come chiedere un preventivo notarile piu preciso. Il prezzo finale dipende dal tipo di atto, dal valore economico della pratica, dalle imposte, dalle verifiche necessarie e dalle tempistiche richieste.`;
+const priceFactors = isFirstHome
+  ? FIRST_HOME_SEO.priceFactors
+  : isCopyAuthentication
+    ? ['Numero di pagine e copie richieste', 'Tipo di documento da autenticare', 'Urgenza della richiesta', 'Marche, diritti o spese vive applicabili']
+    : ['Valore economico della pratica', 'Numero di parti coinvolte', 'Verifiche e visure necessarie', 'Imposte, tasse e spese anticipate dal notaio'];
+const fallbackFaqs = isFirstHome
+  ? FIRST_HOME_SEO.faqs
+  : isCopyAuthentication
+    ? [
+        {
+          question: 'Devo portare il documento originale?',
+          answer: 'Si, di norma il notaio deve confrontare la copia con l originale. Se hai solo una scansione o una foto, chiedi prima allo studio se e sufficiente per il tuo caso.',
+        },
+        {
+          question: 'Il prezzo e sempre fisso?',
+          answer: 'No. Per una copia semplice il costo e contenuto, ma puo variare per numero di pagine, urgenza, marche e diritti richiesti.',
+        },
+        {
+          question: 'Posso fare tutto online?',
+          answer: 'Spesso serve passare dallo studio o inviare prima i documenti per verifica. La disponibilita dipende dal notaio e dal tipo di documento.',
+        },
+      ]
+    : [
+        {
+          question: 'Il preventivo include anche tasse e imposte?',
+          answer: 'Dipende dal caso. Conviene chiedere sempre la distinzione tra compenso del notaio, imposte e spese vive.',
+        },
+        {
+          question: 'Posso confrontare piu notai?',
+          answer: 'Si. Una richiesta chiara e completa permette agli studi di rispondere con preventivi piu confrontabili.',
+        },
+        {
+          question: 'Quando devo andare fisicamente dal notaio?',
+          answer: 'Per molti atti la presenza e necessaria nella fase di firma. Alcune verifiche preliminari possono invece essere gestite a distanza.',
+        },
+      ];
 const faqs = Array.isArray(service.faqs) && service.faqs.length ? service.faqs : fallbackFaqs;
+const htmlContent = typeof service.html_content === 'string' ? service.html_content.trim() : '';
+const hasEditorial = htmlContent.length > 200;
+const imageUrl = service.image_url || '';
+
+function sanitizeServiceHtml(value: string) {
+  return value
+    .replace(/<!doctype[^>]*>/gi, '')
+    .replace(/<html[^>]*>/gi, '')
+    .replace(/<\/html>/gi, '')
+    .replace(/<head[^>]*>[\s\S]*?<\/head>/gi, '')
+    .replace(/<body[^>]*>/gi, '')
+    .replace(/<\/body>/gi, '')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, '')
+    .trim();
+}
+
+function splitFirstHeading(value: string) {
+  const match = value.match(/<h1\b[^>]*>[\s\S]*?<\/h1>/i);
+  if (!match || typeof match.index !== 'number') {
+    return { headingHtml: '', bodyHtml: value };
+  }
+  return {
+    headingHtml: match[0],
+    bodyHtml: `${value.slice(0, match.index)}${value.slice(match.index + match[0].length)}`.trim(),
+  };
+}
+
+function emphasizeOpeningKeyword(value: string, keyword: string) {
+  const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return value.replace(/<p([^>]*)>([\s\S]*?)<\/p>/i, (paragraph, attributes, content) => {
+    const emphasized = content.replace(
+      new RegExp(escapedKeyword, 'i'),
+      (match) => `<strong class="service-content__keyword">${match}</strong>`,
+    );
+    return `<p${attributes}>${emphasized}</p>`;
+  });
+}
+
+const safeHtml = hasEditorial ? sanitizeServiceHtml(htmlContent) : '';
+const splitEditorial = hasEditorial ? splitFirstHeading(safeHtml) : { bodyHtml: '' };
+const bodyHtml = hasEditorial
+  ? emphasizeOpeningKeyword(splitEditorial.bodyHtml, serviceName)
+  : '';
+const canonicalPath = `/quanto-costa/${service.slug}`;
+const toIsoDate = (value?: string | null) => {
+  if (!value) return undefined;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+};
+const publishedTime = toIsoDate(service.content_generated_at || service.created_at);
+const modifiedTime = toIsoDate(service.updated_at) || publishedTime;
+const formattedModifiedDate = modifiedTime
+  ? new Intl.DateTimeFormat('it-IT', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'Europe/Rome',
+    }).format(new Date(modifiedTime))
+  : null;
+
 const faqJsonLd = {
   '@context': 'https://schema.org',
   '@type': 'FAQPage',
@@ -75,6 +178,7 @@ const serviceJsonLd = {
   '@type': 'Service',
   name: serviceName,
   description,
+  image: imageUrl || undefined,
   provider: {
     '@type': 'Organization',
     name: 'NotaioGiusto.it',
@@ -90,91 +194,299 @@ const serviceJsonLd = {
       }
     : undefined,
 };
+const articleJsonLd = hasEditorial
+  ? {
+      '@context': 'https://schema.org',
+      '@type': 'Article',
+      '@id': `${absoluteUrl(canonicalPath)}#article`,
+      headline: title,
+      description,
+      image: imageUrl ? [absoluteUrl(imageUrl)] : [absoluteUrl('/brand/og-default.jpg')],
+      datePublished: publishedTime,
+      dateModified: modifiedTime,
+      mainEntityOfPage: {
+        '@type': 'WebPage',
+        '@id': absoluteUrl(canonicalPath),
+      },
+      author: {
+        '@type': 'Organization',
+        name: 'IlNotaio',
+        url: absoluteUrl('/chi-siamo'),
+      },
+      publisher: {
+        '@type': 'Organization',
+        name: 'NotaioGiusto.it',
+        url: absoluteUrl('/'),
+        logo: {
+          '@type': 'ImageObject',
+          url: absoluteUrl('/brand/notaiogiusto-mark-1024.png'),
+          width: 1024,
+          height: 1024,
+        },
+      },
+      articleSection: macro.name,
+      inLanguage: 'it-IT',
+      isAccessibleForFree: true,
+    }
+  : null;
 ---
 <BaseLayout
   title={title}
   description={description}
-  canonicalPath={`/quanto-costa/${service.slug}`}
-  jsonLd={[serviceJsonLd, faqJsonLd]}
+  canonicalPath={canonicalPath}
+  jsonLd={[serviceJsonLd, faqJsonLd, articleJsonLd].filter(Boolean)}
+  ogImage={imageUrl || '/brand/og-default.jpg'}
+  ogImageAlt={`${serviceName} — guida a costi, documenti e preventivo`}
+  ogType={hasEditorial ? 'article' : 'website'}
+  author={hasEditorial ? 'IlNotaio' : undefined}
+  publishedTime={hasEditorial ? publishedTime : undefined}
+  modifiedTime={hasEditorial ? modifiedTime : undefined}
+  articleSection={hasEditorial ? macro.name : undefined}
 >
-  <section class="service-hero">
-    <div>
-      <span class="eyebrow">{service.category || 'Servizio notarile'}</span>
-      <h1>{serviceName}: costo, documenti e preventivo</h1>
-      <p class="lead">{intro}</p>
-      <div class="hero-summary">
-        <span><strong>{priceRange}</strong> range indicativo</span>
-        <span><strong>{euro(service.price_avg_cents)}</strong> media rilevata</span>
-        <span><strong>{isLowComplexity ? 'Bassa' : service.complexity || 'Media'}</strong> complessità</span>
+  {hasEditorial ? (
+    <section class="service-article">
+      <div class="service-article__shell">
+        <nav class="breadcrumbs" aria-label="Breadcrumb">
+          <a href="/">Home</a>
+          <span aria-hidden="true">/</span>
+          <a href="/quanto-costa">Quanto costa</a>
+          <span aria-hidden="true">/</span>
+          <a href={macroCategoryPath(service.category)}>{macro.name}</a>
+          <span aria-hidden="true">/</span>
+          <span>{serviceName}</span>
+        </nav>
+
+        <article class="service-article__card">
+          <div class="service-article__body service-article__body--lead">
+            <p class="service-article__kicker">Pratica notarile · guida e preventivo</p>
+            <h1>{serviceName}</h1>
+            {service.user_intent && <p class="service-article__deck">{service.user_intent}</p>}
+            <p class="service-article__byline">
+              Di <strong>IlNotaio</strong>
+              {formattedModifiedDate ? ` · Aggiornato il ${formattedModifiedDate}` : ''}
+            </p>
+            <div class="service-article__meta">
+              <span class="pill green">Prezzo medio: {euro(service.price_avg_cents)}</span>
+            </div>
+          </div>
+
+          {imageUrl && (
+            <div class="service-article__hero-media">
+              <img src={imageUrl} alt="" loading="eager" decoding="async" />
+            </div>
+          )}
+
+          <div class="service-article__body">
+            <section class="service-search-panel" data-service-search>
+              <h2>Cerca notai disponibili</h2>
+              <p>
+                Trova studi nella tua città e chiedi un preventivo per {serviceName.toLowerCase()}.
+              </p>
+              <form class="service-search-form" action="/notai" method="get">
+                <input type="hidden" name="servizio" value={service.slug} />
+                <label class="service-search-form__where">
+                  <span>Dove?</span>
+                  <input type="text" name="comune" placeholder="Es. Milano, Roma, Torino" autocomplete="address-level2" />
+                </label>
+                <button
+                  type="button"
+                  class="near-me-btn"
+                  data-near-me
+                  data-near-me-base={`/notai?servizio=${encodeURIComponent(service.slug)}`}
+                >
+                  Vicino a te
+                </button>
+                <button class="btn" type="submit">Cerca</button>
+                <a class="btn blue" rel="nofollow" href={`/preventivo?step=2&servizio=${encodeURIComponent(service.slug)}`}>Preventivo</a>
+              </form>
+              <LegalDisclaimer variant="inline" />
+            </section>
+
+            <div class="service-content" set:html={bodyHtml} />
+
+            {faqs.length > 0 && (
+              <section class="service-article__faq">
+                <h2>Domande frequenti</h2>
+                <p class="muted-text" style="margin-bottom:14px">
+                  Risposte pratiche per arrivare preparato e chiedere un preventivo più chiaro.
+                </p>
+                <div class="faq-list">
+                  {faqs.map((faq) => (
+                    <details>
+                      <summary>{faq.question}</summary>
+                      <p>{faq.answer}</p>
+                    </details>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            <section class="service-article__cities">
+              <h2>Trova notai per {serviceName}</h2>
+              <div class="city-link-row">
+                {featuredCities.slice(0, 6).map((city) => (
+                  <a href={`/quanto-costa/${toLocationSlug(city.name, city.province)}/${service.slug}/notai`}>
+                    {serviceName} a {city.name}
+                  </a>
+                ))}
+              </div>
+            </section>
+
+            {related.length > 0 && (
+              <section class="service-article__related">
+                <h2>Altre pratiche correlate</h2>
+                <div class="city-link-row">
+                  {related.map((item) => (
+                    <a href={`/quanto-costa/${item.slug}`}>{item.plain_language_name || item.name}</a>
+                  ))}
+                </div>
+              </section>
+            )}
+          </div>
+        </article>
       </div>
+    </section>
+  ) : (
+    <>
+      <section class="service-hero">
+        <div>
+          <nav class="breadcrumbs" aria-label="Breadcrumb">
+            <a href="/">Home</a>
+            <span aria-hidden="true">/</span>
+            <a href="/quanto-costa">Quanto costa</a>
+            <span aria-hidden="true">/</span>
+            <a href={macroCategoryPath(service.category)}>{macro.name}</a>
+            <span aria-hidden="true">/</span>
+            <span>{serviceName}</span>
+          </nav>
+          <span class="eyebrow">{macro.name}</span>
+          <h1>{serviceName}: costo, documenti e preventivo</h1>
+          <p class="lead">{intro}</p>
+          <div class="hero-summary">
+            <span><strong>{priceRange}</strong> range indicativo</span>
+            <span><strong>{euro(service.price_avg_cents)}</strong> media rilevata</span>
+            <span><strong>{isLowComplexity ? 'Bassa' : service.complexity || 'Media'}</strong> complessità</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="section service-layout">
+        <article class="content-stack">
+          <div class="card editorial-card">
+            <h2>Quando serve</h2>
+            <p>{practicalDescription}</p>
+          </div>
+
+          <div class="info-grid">
+            <div class="card">
+              <h2>Cosa incide sul prezzo</h2>
+              <ul class="check-list">
+                {priceFactors.map((factor) => <li>{factor}</li>)}
+              </ul>
+            </div>
+            <div class="card">
+              <h2>Documenti da preparare</h2>
+              <ul class="check-list">
+                {documents.map((document) => <li>{document}</li>)}
+              </ul>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>Come leggere il prezzo</h2>
+            <p>
+              Il range e una stima nazionale utile per orientarsi. Il preventivo reale deve distinguere
+              compenso professionale, imposte, tasse, marche e spese anticipate. Per questo una richiesta
+              con documenti e contesto riduce risposte generiche e rende piu facile confrontare gli studi.
+            </p>
+            <div class="meta">
+              <span class="pill green">{service.requires_in_person ? 'Di norma serve lo studio' : 'Possibile gestione a distanza'}</span>
+              <span class="pill gold">Preventivo da confermare sul caso</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>Domande frequenti</h2>
+            <div class="faq-list">
+              {faqs.map((faq) => (
+                <details>
+                  <summary>{faq.question}</summary>
+                  <p>{faq.answer}</p>
+                </details>
+              ))}
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>Preventivo per {serviceName} nei capoluoghi</h2>
+            <p class="muted-text">
+              Pagine locali con notai del comune e, se servono più studi, del distretto notarile.
+            </p>
+            <div class="service-chip-grid">
+              {featuredCities.map((city) => (
+                <a
+                  class="service-chip"
+                  href={`/quanto-costa/${toLocationSlug(city.name, city.province)}/${service.slug}/notai`}
+                >
+                  <strong>{city.name}</strong>
+                  <span>Notai e preventivo · {city.province}</span>
+                </a>
+              ))}
+            </div>
+          </div>
+
+          {related.length > 0 && (
+            <div class="card">
+              <h2>Altri servizi in <a href={macroCategoryPath(service.category)}>{macro.name}</a></h2>
+              <div class="service-chip-grid">
+                {related.map((item) => (
+                  <a class="service-chip" href={`/quanto-costa/${item.slug}`}>
+                    <strong>{item.plain_language_name || item.name}</strong>
+                    <span>{euro(item.price_avg_cents)}</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+        </article>
+
+        <aside class="side-stack">
+          <div class="card price-card">
+            <h2>Range indicativo nazionale</h2>
+            <div class="price">{priceRange}</div>
+            <p>Valore medio rilevato: <strong>{euro(service.price_avg_cents)}</strong>. Imposte, tasse e anticipazioni vanno confermate sul caso concreto.</p>
+            <div class="meta">
+              <span class="pill green">{service.requires_in_person ? 'Di norma in studio' : 'Possibile da remoto'}</span>
+              <span class="pill gold">Complessità {service.complexity || 'media'}</span>
+            </div>
+          </div>
+          <div class="quote-box">
+            <h2>Richiedi un preventivo per {serviceName}</h2>
+            <p>Usa il funnel guidato: pratica, località e selezione fino a 10 notai, con riepilogo prima dell’invio.</p>
+            <a class="btn blue" rel="nofollow" href={`/preventivo?step=2&servizio=${encodeURIComponent(service.slug)}`}>Inizia richiesta qualificata</a>
+            <LegalDisclaimer variant="compact" />
+          </div>
+        </aside>
+      </section>
+    </>
+  )}
+
+  <div class="listing-sticky-bar service-quote-sticky" role="region" aria-label="Preventivo gratuito vicino a te">
+    <div class="listing-sticky-bar__inner">
+      <p class="listing-sticky-bar__copy">
+        <strong>Preventivo gratuito</strong>
+        <span>Trova gli studi più vicini alla tua posizione</span>
+      </p>
+      <button
+        type="button"
+        class="btn blue listing-sticky-bar__cta service-quote-sticky__cta"
+        data-near-me
+        data-near-me-target="funnel"
+        data-near-me-base={`/preventivo?step=2&servizio=${encodeURIComponent(service.slug)}`}
+        data-near-me-label="Chiedi Preventivo Gratis Vicino a Te"
+      >
+        Chiedi Preventivo Gratis Vicino a Te
+      </button>
     </div>
-  </section>
-
-  <section class="section service-layout">
-    <article class="content-stack">
-      <div class="card editorial-card">
-        <h2>Quando serve</h2>
-        <p>{practicalDescription}</p>
-      </div>
-
-      <div class="info-grid">
-        <div class="card">
-          <h2>Cosa incide sul prezzo</h2>
-          <ul class="check-list">
-            {priceFactors.map((factor) => <li>{factor}</li>)}
-          </ul>
-        </div>
-        <div class="card">
-          <h2>Documenti da preparare</h2>
-          <ul class="check-list">
-            {documents.map((document) => <li>{document}</li>)}
-          </ul>
-        </div>
-      </div>
-
-      <div class="card">
-        <h2>Come leggere il prezzo</h2>
-        <p>
-          Il range e una stima nazionale utile per orientarsi. Il preventivo reale deve distinguere
-          compenso professionale, imposte, tasse, marche e spese anticipate. Per questo una richiesta
-          con documenti e contesto riduce risposte generiche e rende piu facile confrontare gli studi.
-        </p>
-        <div class="meta">
-          <span class="pill green">{service.requires_in_person ? 'Di norma serve lo studio' : 'Possibile gestione a distanza'}</span>
-          <span class="pill gold">Preventivo da confermare sul caso</span>
-        </div>
-      </div>
-
-      <div class="card">
-        <h2>Domande frequenti</h2>
-        <div class="faq-list">
-          {faqs.map((faq) => (
-            <details>
-              <summary>{faq.question}</summary>
-              <p>{faq.answer}</p>
-            </details>
-          ))}
-        </div>
-      </div>
-    </article>
-
-    <aside class="side-stack">
-      <div class="card price-card">
-        <h2>Range indicativo nazionale</h2>
-        <div class="price">{priceRange}</div>
-        <p>Valore medio rilevato: <strong>{euro(service.price_avg_cents)}</strong>. Imposte, tasse e anticipazioni vanno confermate sul caso concreto.</p>
-        <div class="meta">
-          <span class="pill green">{service.requires_in_person ? 'Di norma in studio' : 'Possibile da remoto'}</span>
-          <span class="pill gold">Complessità {service.complexity || 'media'}</span>
-        </div>
-      </div>
-      <div class="quote-box">
-        <h2>Richiedi un preventivo per {serviceName}</h2>
-        <p>Usa il funnel guidato: pratica, località e selezione fino a 3 notai, con riepilogo prima dell’invio.</p>
-        <a class="btn blue" href={`/preventivo?step=2&servizio=${encodeURIComponent(service.slug)}`}>Inizia richiesta qualificata</a>
-        <p class="helper-text">Puoi anche partire dalla ricerca notai e aggiungere fino a 3 studi al preventivo.</p>
-        <a class="btn secondary" href={`/notai?servizio=${encodeURIComponent(service.slug)}`}>Cerca notai per questo servizio</a>
-      </div>
-    </aside>
-  </section>
+  </div>
 </BaseLayout>

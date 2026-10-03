@@ -1,13 +1,17 @@
 ---
-import AdminTestNav from '../../components/AdminTestNav.astro';
+import AdminShell from '../../components/AdminShell.astro';
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import { isAdminAuthenticated } from '../../lib/admin';
+import { getAdminEmail, isAdminAuthenticated } from '../../lib/admin';
 import { listAdminClaims, updateClaimStatus } from '../../lib/admin-data';
 import { titleCase } from '../../lib/format';
+
+export const prerender = false;
 
 if (!isAdminAuthenticated(Astro.cookies)) {
   return Astro.redirect('/admin/login?next=/admin-test/claim');
 }
+
+const adminEmail = getAdminEmail(Astro.cookies) || '';
 
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
@@ -22,13 +26,14 @@ if (Astro.request.method === 'POST') {
 const claims = await listAdminClaims(150);
 ---
 <BaseLayout title="Claim | Admin test" noindex={true}>
-  <section class="section">
+  <AdminShell current="claims" adminEmail={adminEmail}>
+  <div class="admin-page">
     <div class="section-heading">
       <span class="eyebrow">Admin test</span>
       <h1>Claim profili</h1>
       <p>Richieste di presa possesso scheda notaio. Approva o rifiuta manualmente.</p>
     </div>
-    <AdminTestNav current="claim" />
+    
     <div class="list">
       {claims.map((claim) => (
         <article class="card admin-request">
@@ -78,5 +83,6 @@ const claims = await listAdminClaims(150);
       ))}
       {!claims.length && <div class="notice">Nessun claim presente.</div>}
     </div>
-  </section>
+  </div>
+  </AdminShell>
 </BaseLayout>

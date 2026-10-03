@@ -1,73 +1,143 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import {
-  createMagicLoginToken,
-  getClientEmail,
-  hasClientAuthSecret,
-  isMailConfigured,
-} from '../../lib/client-auth';
-import { absoluteUrl } from '../../lib/site';
+import { loginClientAccount, registerClientAccount } from '../../lib/client-auth';
+import { getClientEmail, hasClientAuthSecret, setClientSession } from '../../lib/client-auth';
+import { isGoogleOAuthConfigured } from '../../lib/google-oauth';
+
+export const prerender = false;
 
 if (getClientEmail(Astro.cookies)) {
   return Astro.redirect('/area-clienti/richieste');
 }
 
-let error = Astro.url.searchParams.get('errore') === 'link'
-  ? 'Link non valido o scaduto. Generane uno nuovo.'
-  : '';
-let magicUrl = '';
+const nextRaw = (Astro.url.searchParams.get('next') || '/area-clienti/richieste').trim();
+const next = nextRaw.startsWith('/') ? nextRaw : '/area-clienti/richieste';
+const modeParam = Astro.url.searchParams.get('mode') === 'register' ? 'register' : 'login';
+const googleEnabled = isGoogleOAuthConfigured();
+const googleHref = `/api/auth/google/start?audience=client&redirect_to=${encodeURIComponent(next)}`;
+
+let mode: 'login' | 'register' = modeParam;
+let error = '';
 let submittedEmail = '';
+
+if (Astro.url.searchParams.get('errore') === 'google') {
+  error = 'Accesso Google non riuscito. Riprova o usa email e password.';
+}
+if (Astro.url.searchParams.get('errore') === 'link') {
+  error = 'I vecchi link email non sono più validi. Accedi con password o Google.';
+}
 
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
+  const action = String(form.get('action') || '').trim();
   const email = String(form.get('email') || '').trim().toLowerCase();
+  const password = String(form.get('password') || '');
   submittedEmail = email;
 
-  if (!email.includes('@')) {
-    error = 'Inserisci un’email valida.';
-  } else if (!hasClientAuthSecret()) {
-    error = 'AUTH_SECRET o ADMIN_TOKEN non configurato nel .env.';
+  if (!hasClientAuthSecret()) {
+    error = 'AUTH_SECRET o ADMIN_TOKEN non configurato sul server.';
+  } else if (action === 'register') {
+    mode = 'register';
+    const password2 = String(form.get('password2') || '');
+    if (password !== password2) {
+      error = 'Le password non coincidono.';
+    } else {
+      const result = await registerClientAccount(email, password);
+      if (!result.ok) {
+        error =
+          result.error === 'already_registered'
+            ? 'Email già registrata. Accedi con la password o con Google.'
+            : result.error === 'weak_password'
+              ? 'La password deve avere almeno 8 caratteri.'
+              : 'Email non valida.';
+        if (result.error === 'already_registered') mode = 'login';
+      } else {
+        setClientSession(Astro.cookies, result.email);
+        return Astro.redirect(next);
+      }
+    }
   } else {
-    const token = createMagicLoginToken(email);
-    magicUrl = absoluteUrl(`/area-clienti/verifica?token=${encodeURIComponent(token)}`);
-    // Mailgun non ancora collegato: in locale mostriamo il link di accesso.
-    if (isMailConfigured()) {
-      // Placeholder: quando Mailgun sarà attivo, inviare magicUrl e non mostrarlo in pagina.
+    mode = 'login';
+    const result = await loginClientAccount(email, password);
+    if (!result.ok) {
+      error =
+        result.error === 'use_google'
+          ? 'Questo account usa Google Login. Clicca «Continua con Google».'
+          : 'Email o password non corretti.';
+    } else {
+      setClientSession(Astro.cookies, result.email);
+      return Astro.redirect(next);
     }
   }
 }
 ---
 <BaseLayout title="Accedi area clienti | NotaioGiusto.it" noindex={true} canonicalPath="/area-clienti/accedi">
-  <section class="section">
-    <form class="card funnel-card" method="post" action="/area-clienti/accedi">
+  <section class="section auth-page">
+    <div class="card funnel-card auth-card">
       <span class="eyebrow">Accesso clienti</span>
-      <h1>Entra con la tua email</h1>
-      <p class="lead">Usa la stessa email con cui hai inviato la richiesta di preventivo. Ti diamo un link temporaneo valido 30 minuti.</p>
+      <h1>{mode === 'register' ? 'Crea account' : 'Accedi all’area clienti'}</h1>
+      <p class="lead">
+        {mode === 'register'
+          ? 'Registrati con email e password, oppure con Google. Nessun link da confermare via email.'
+          : 'Accedi con email e password oppure con Google (stessa email della richiesta di preventivo).'}
+      </p>
+
+      <div class="funnel-actions" style="margin-bottom:1rem">
+        <a class={`btn ${mode === 'login' ? 'blue' : 'secondary'}`} rel="nofollow" href={`/area-clienti/accedi?mode=login&next=${encodeURIComponent(next)}`}>Accedi</a>
+        <a class={`btn ${mode === 'register' ? 'blue' : 'secondary'}`} rel="nofollow" href={`/area-clienti/accedi?mode=register&next=${encodeURIComponent(next)}`}>Registrati</a>
+      </div>
+
       {error && <div class="error">{error}</div>}
-      {magicUrl ? (
-        <div class="success">
-          Link di accesso pronto{submittedEmail ? ` per ${submittedEmail}` : ''}.
-          {isMailConfigured()
-            ? ' In produzione arriverà via email.'
-            : ' Mailgun non è ancora attivo: usa il link qui sotto.'}
+
+      {googleEnabled ? (
+        <div class="funnel-actions" style="margin-bottom:1.25rem">
+          <a class="btn secondary auth-google-btn" rel="nofollow" href={googleHref}>Continua con Google</a>
         </div>
       ) : (
-        <label>
-          Email
-          <input required type="email" name="email" value={submittedEmail} placeholder="nome@email.it" autocomplete="email" />
-        </label>
-      )}
-      {magicUrl && (
-        <div class="notice">
-          <strong>Link di accesso</strong>
-          <p><a href={magicUrl}>{magicUrl}</a></p>
+        <div class="notice" style="margin-bottom:1rem">
+          Google Login non è ancora configurato sul server (<code>GOOGLE_OAUTH_CLIENT_ID</code> / <code>SECRET</code>).
         </div>
       )}
-      <div class="funnel-actions">
-        {!magicUrl && <button class="btn blue" type="submit">Genera link di accesso</button>}
-        {magicUrl && <a class="btn blue" href={magicUrl}>Apri area clienti</a>}
-        <a class="btn secondary" href="/area-clienti">Indietro</a>
-      </div>
-    </form>
+
+      <p class="helper-text" style="margin-bottom:1rem;text-align:center">oppure con email</p>
+
+      {mode === 'register' ? (
+        <form method="post" action={`/area-clienti/accedi?mode=register&next=${encodeURIComponent(next)}`}>
+          <input type="hidden" name="action" value="register" />
+          <label>
+            Email
+            <input required type="email" name="email" value={submittedEmail} placeholder="nome@email.it" autocomplete="email" />
+          </label>
+          <label>
+            Password (min. 8 caratteri)
+            <input required type="password" name="password" minlength="8" autocomplete="new-password" />
+          </label>
+          <label>
+            Conferma password
+            <input required type="password" name="password2" minlength="8" autocomplete="new-password" />
+          </label>
+          <div class="funnel-actions">
+            <button class="btn blue" type="submit">Registrati</button>
+            <a class="btn secondary" href="/area-clienti">Indietro</a>
+          </div>
+        </form>
+      ) : (
+        <form method="post" action={`/area-clienti/accedi?mode=login&next=${encodeURIComponent(next)}`}>
+          <input type="hidden" name="action" value="login" />
+          <label>
+            Email
+            <input required type="email" name="email" value={submittedEmail} placeholder="nome@email.it" autocomplete="email" />
+          </label>
+          <label>
+            Password
+            <input required type="password" name="password" minlength="8" autocomplete="current-password" />
+          </label>
+          <div class="funnel-actions">
+            <button class="btn blue" type="submit">Accedi</button>
+            <a class="btn secondary" href="/area-clienti">Indietro</a>
+          </div>
+        </form>
+      )}
+    </div>
   </section>
 </BaseLayout>

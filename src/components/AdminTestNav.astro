@@ -1,17 +1,3 @@
 ---
-const { current = 'overview' } = Astro.props;
-const items = [
-  { id: 'overview', href: '/admin-test', label: 'Overview' },
-  { id: 'preventivi', href: '/admin-test/preventivi', label: 'Preventivi' },
-  { id: 'clienti', href: '/admin-test/clienti', label: 'Clienti' },
-  { id: 'arricchimenti', href: '/admin-test/arricchimenti', label: 'Arricchimenti' },
-  { id: 'claim', href: '/admin-test/claim', label: 'Claim' },
-  { id: 'tassonomia', href: '/admin-test/tassonomia', label: 'Tassonomia' },
-];
+/** Legacy stub — pages now use AdminShell.astro */
 ---
-<nav class="client-nav admin-test-nav">
-  {items.map((item) => (
-    <a class={item.id === current ? 'is-active' : ''} href={item.href}>{item.label}</a>
-  ))}
-  <a href="/admin/logout">Esci</a>
-</nav>

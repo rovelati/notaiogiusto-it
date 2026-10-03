@@ -1,0 +1,41 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { siteConfig } from '../lib/site';
+
+const title = `Privacy Policy | ${siteConfig.name}`;
+const description = `Informativa privacy di ${siteConfig.name}: dati trattati, finalità, diritti degli utenti e contatti.`;
+---
+<BaseLayout title={title} description={description} canonicalPath="/privacy-policy">
+  <section class="section legal-page">
+    <article class="card legal-card">
+      <h1>Privacy Policy</h1>
+      <p class="legal-updated">Ultimo aggiornamento: 14 agosto 2026</p>
+      <div class="legal-prose">
+        <h2>Titolare del trattamento</h2>
+        <p>
+          {siteConfig.name} tutela la privacy degli utenti. Per richieste relative ai dati personali puoi scrivere a
+          <a href={`mailto:${siteConfig.publicEmail}`}>{siteConfig.publicEmail}</a>.
+        </p>
+        <h2>Dati trattati</h2>
+        <ul>
+          <li>Dati inviati volontariamente tramite form di preventivo, area clienti, claim o email.</li>
+          <li>Dati tecnici di navigazione, come indirizzo IP, browser, log e preferenze (es. tema).</li>
+          <li>
+            Statistiche di utilizzo tramite Google Analytics 4 (ID misurazione <code>G-NDREZNGP80</code>),
+            in forma aggregata: pagine viste, eventi di navigazione, funnel preventivo e click.
+          </li>
+          <li>Dati pubblici relativi agli studi notarili, raccolti e organizzati per finalità informative.</li>
+        </ul>
+        <h2>Finalità</h2>
+        <p>
+          Usiamo i dati per gestire richieste di preventivo, migliorare il servizio, mantenere le schede,
+          abilitare funzionalità di ricerca e adempiere a obblighi tecnici o normativi.
+        </p>
+        <h2>Diritti dell’utente</h2>
+        <p>
+          Puoi chiedere accesso, rettifica, cancellazione, limitazione o opposizione al trattamento nei casi previsti dal GDPR.
+        </p>
+      </div>
+    </article>
+  </section>
+</BaseLayout>

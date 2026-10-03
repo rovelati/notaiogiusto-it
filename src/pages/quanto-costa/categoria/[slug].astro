@@ -1,0 +1,50 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { euro } from '../../../lib/format';
+import { getMacroBySlug, macroCategory } from '../../../lib/locations';
+import { getTopServices } from '../../../lib/notai';
+
+const macro = getMacroBySlug(Astro.params.slug || '');
+if (!macro) return Astro.redirect('/quanto-costa');
+
+const services = (await getTopServices(120)).filter(
+  (service) => macroCategory(service.category) === macro.name,
+);
+const title = `${macro.name}: costi notarili e preventivo`;
+const description = `${macro.description} Elenco prestazioni con range indicativi e link al dettaglio.`;
+---
+<BaseLayout title={title} description={description} canonicalPath={`/quanto-costa/categoria/${macro.slug}`}>
+  <section class="home-hero qc-hero qc-hero--compact">
+    <div class="home-hero__glow" aria-hidden="true"></div>
+    <div class="home-hero__inner">
+      <div class="home-hero__intro">
+        <nav class="breadcrumbs breadcrumbs--on-dark" aria-label="Breadcrumb">
+          <a href="/">Home</a>
+          <span aria-hidden="true">/</span>
+          <a href="/quanto-costa">Quanto costa</a>
+          <span aria-hidden="true">/</span>
+          <span>{macro.name}</span>
+        </nav>
+        <h1>{macro.name}</h1>
+        <p class="home-hero__tagline">{macro.description}</p>
+        <p class="home-hero__hint">{services.length} prestazioni in questa area</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="grid">
+      {services.map((service) => (
+        <a class="card qc-popular-card" href={`/quanto-costa/${service.slug}`}>
+          <h3>{service.plain_language_name || service.name}</h3>
+          <p>{service.user_intent}</p>
+          <div class="price">{euro(service.price_avg_cents)}</div>
+          <div class="meta">
+            <span class="pill">{euro(service.price_min_cents)} - {euro(service.price_max_cents)}</span>
+          </div>
+        </a>
+      ))}
+    </div>
+    {!services.length && <div class="notice">Nessuna prestazione ancora classificata in questa area.</div>}
+  </section>
+</BaseLayout>

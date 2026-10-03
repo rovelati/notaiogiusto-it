@@ -1,0 +1,31 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { siteConfig } from '../lib/site';
+
+const title = `Contattaci | ${siteConfig.name}`;
+const description = `Contatta ${siteConfig.name} per segnalazioni, aggiornamenti schede notarili, collaborazioni e richieste editoriali.`;
+---
+<BaseLayout title={title} description={description} canonicalPath="/contatti">
+  <section class="section legal-page">
+    <article class="card legal-card">
+      <h1>Contattaci</h1>
+      <p class="lead">Il team di {siteConfig.name} raccoglie segnalazioni, richieste di correzione e proposte di collaborazione.</p>
+      <div class="contact-cards">
+        <section class="card">
+          <h2>Email generale</h2>
+          <p>Per informazioni, bug, suggerimenti e richieste editoriali.</p>
+          <a class="official-link" href={`mailto:${siteConfig.publicEmail}`}>{siteConfig.publicEmail}</a>
+        </section>
+        <section class="card">
+          <h2>Sei un notaio?</h2>
+          <p>Per aggiornare una scheda già presente, correggere dati o aggiungere servizi, puoi reclamare lo studio.</p>
+          <a class="btn" href="/claim">Reclama la scheda</a>
+        </section>
+      </div>
+      <div class="notice" style="margin-top:22px">
+        <strong>Attenzione:</strong> {siteConfig.name} non è uno studio notarile e non offre consulenza legale.
+        Per una pratica specifica contatta direttamente un notaio o avvia una <a href="/preventivo">richiesta di preventivo</a>.
+      </div>
+    </article>
+  </section>
+</BaseLayout>

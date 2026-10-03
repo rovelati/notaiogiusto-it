@@ -1,0 +1,272 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { titleCase } from '../../lib/format';
+import { getNotaryEmail } from '../../lib/notary-auth';
+import {
+  claimNotarySecure,
+  getClaimableNotaryById,
+  getNotaryOwnedByEmail,
+  searchClaimableNotaries,
+} from '../../lib/notary-profile';
+
+export const prerender = false;
+
+const email = getNotaryEmail(Astro.cookies);
+const stepParam = Math.min(4, Math.max(1, Number(Astro.url.searchParams.get('step') || '1') || 1));
+const notaryParam = (Astro.url.searchParams.get('notary') || '').trim();
+const qParam = (Astro.url.searchParams.get('q') || '').trim();
+
+let step = stepParam;
+let error = '';
+
+if (!email && step > 1) step = 1;
+
+const preselected = notaryParam ? await getClaimableNotaryById(notaryParam) : null;
+const owned = email ? await getNotaryOwnedByEmail(email) : null;
+const searchResults = qParam ? await searchClaimableNotaries(qParam, 12) : [];
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const action = String(form.get('action') || '').trim();
+
+  if (action === 'responsibility' && email) {
+    const accepted = String(form.get('accepted') || '') === '1';
+    if (!accepted) {
+      error = 'Devi accettare la dichiarazione di responsabilità.';
+      step = 2;
+    } else {
+      return Astro.redirect(`/claim/start?step=3${notaryParam ? `&notary=${encodeURIComponent(notaryParam)}` : ''}`);
+    }
+  }
+
+  if (action === 'select' && email) {
+    const notaryId = String(form.get('notary_id') || '').trim();
+    if (!notaryId) {
+      error = 'Seleziona uno studio.';
+      step = 3;
+    } else {
+      return Astro.redirect(`/claim/start?step=4&notary=${encodeURIComponent(notaryId)}`);
+    }
+  }
+
+  if (action === 'confirm' && email) {
+    const notaryId = String(form.get('notary_id') || notaryParam).trim();
+    const name = String(form.get('name') || '').trim();
+    const phone = String(form.get('phone') || '').trim();
+    const role = String(form.get('role') || '').trim();
+    const message = String(form.get('message') || '').trim();
+    if (!name) {
+      error = 'Indica nome e cognome.';
+      step = 4;
+    } else {
+      const result = await claimNotarySecure({
+        notaryId,
+        email,
+        name,
+        phone,
+        role,
+        message,
+      });
+      if (!result.ok) {
+        error =
+          result.error === 'already_has_notary'
+            ? 'Stai già gestendo un altro studio. Un account = una scheda.'
+            : result.error === 'already_claimed'
+              ? 'Questa scheda è già gestita da un altro account.'
+              : result.error === 'notary_not_found'
+                ? 'Studio non trovato.'
+                : 'Impossibile completare la richiesta.';
+        step = 4;
+      } else {
+        return Astro.redirect('/area-notai/scheda?claimed=1');
+      }
+    }
+  }
+}
+
+const selected =
+  notaryParam && step >= 3
+    ? preselected || (await getClaimableNotaryById(notaryParam))
+    : preselected;
+
+const claimNext = `/claim/start?step=2${notaryParam ? `&notary=${encodeURIComponent(notaryParam)}` : ''}`;
+
+const steps = [
+  { n: 1, label: 'Accesso' },
+  { n: 2, label: 'Dichiarazione' },
+  { n: 3, label: 'Selezione' },
+  { n: 4, label: 'Conferma' },
+];
+---
+<BaseLayout
+  title="Richiedi gestione scheda | NotaioGiusto.it"
+  description="Accedi, dichiara la responsabilità e richiedi la gestione della scheda del tuo studio notarile."
+  noindex={true}
+  canonicalPath="/claim/start"
+>
+  <section class="funnel-hero">
+    <span class="eyebrow">Claim scheda · area notai</span>
+    <h1>Richiedi la gestione della scheda</h1>
+    <p class="lead">Quattro passaggi: accesso con email e password, dichiarazione, selezione dello studio e conferma. Poi aggiorni i dati dall’area notai.</p>
+    <ol class="funnel-steps">
+      {steps.map((item) => (
+        <li class={item.n === step ? 'is-active' : item.n < step ? 'is-done' : ''}>
+          <span>{item.n}</span>
+          {item.label}
+        </li>
+      ))}
+    </ol>
+  </section>
+
+  <section class="section funnel-section">
+    <div class="funnel-stack">
+      {error && <div class="error">{error}</div>}
+      {owned && step < 4 && (
+        <div class="notice">
+          Stai già gestendo <strong>{titleCase(owned.full_name)}</strong>.
+          <a href="/area-notai/scheda">Vai alla scheda</a>
+        </div>
+      )}
+
+      {step === 1 && (
+        <div class="card funnel-card">
+          <h2>1. Accedi o registrati</h2>
+          {email ? (
+            <div class="success">
+              Sei autenticato come <strong>{email}</strong>.
+              <div class="funnel-actions">
+                <a class="btn blue" rel="nofollow" href={claimNext}>Continua</a>
+                <a class="btn secondary" href="/area-notai/esci">Esci</a>
+              </div>
+            </div>
+          ) : (
+            <>
+              <p>Serve un account: registrati o accedi con email e password, oppure con Google. Poi colleghi la scheda dello studio.</p>
+              <div class="funnel-actions">
+                <a class="btn blue" rel="nofollow" href={`/area-notai/accedi?mode=register&next=${encodeURIComponent(claimNext)}`}>Registrati</a>
+                <a class="btn secondary" rel="nofollow" href={`/area-notai/accedi?mode=login&next=${encodeURIComponent(claimNext)}`}>Accedi</a>
+                <a class="btn secondary" href="/claim">Indietro</a>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {step === 2 && email && (
+        <form class="card funnel-card" method="post" action={`/claim/start?step=2${notaryParam ? `&notary=${encodeURIComponent(notaryParam)}` : ''}`}>
+          <input type="hidden" name="action" value="responsibility" />
+          <h2>2. Dichiarazione di responsabilità</h2>
+          <p>Dichiari di essere autorizzato a gestire la scheda pubblica dello studio.</p>
+          <label class="notary-pick is-selected" style="align-items:center">
+            <input type="checkbox" name="accepted" value="1" required />
+            <span>
+              <strong>Confermo di essere titolare o collaboratore autorizzato</strong>
+              <em>Un account gestisce una sola scheda. I dati pubblicati restano sotto la mia responsabilità.</em>
+            </span>
+          </label>
+          <div class="funnel-actions">
+            <a class="btn secondary" rel="nofollow" href={`/claim/start?step=1${notaryParam ? `&notary=${encodeURIComponent(notaryParam)}` : ''}`}>Indietro</a>
+            <button class="btn blue" type="submit">Continua</button>
+          </div>
+        </form>
+      )}
+
+      {step === 3 && email && (
+        <div class="funnel-stack">
+          <form class="card funnel-card" method="get" action="/claim/start">
+            <input type="hidden" name="step" value="3" />
+            <h2>3. Seleziona lo studio</h2>
+            <p>Cerca per cognome o comune. Le schede già gestite restano selezionabili solo dal titolare.</p>
+            <div class="funnel-grid">
+              <label>Cerca studio <input name="q" value={qParam} placeholder="Es. Rossi Milano" /></label>
+              <div class="funnel-actions inline">
+                <button class="btn secondary" type="submit">Cerca</button>
+              </div>
+            </div>
+          </form>
+
+          {selected && !qParam && (
+            <form class="card funnel-card" method="post" action="/claim/start?step=3">
+              <input type="hidden" name="action" value="select" />
+              <input type="hidden" name="notary_id" value={selected.id} />
+              <h3>Studio selezionato</h3>
+              <p>
+                <strong>{titleCase(selected.full_name)}</strong>
+                {selected.comune ? ` · ${titleCase(selected.comune)}` : ''}
+                {selected.address ? ` · ${selected.address}` : ''}
+              </p>
+              {selected.owner_email && selected.owner_email.toLowerCase() !== email.toLowerCase() ? (
+                <div class="error">Scheda già gestita da un altro account.</div>
+              ) : (
+                <div class="funnel-actions">
+                  <a class="btn secondary" rel="nofollow" href="/claim/start?step=2">Indietro</a>
+                  <button class="btn blue" type="submit">Usa questo studio</button>
+                </div>
+              )}
+            </form>
+          )}
+
+          {searchResults.length > 0 && (
+            <form class="card funnel-card" method="post" action="/claim/start?step=3">
+              <input type="hidden" name="action" value="select" />
+              <h3>Risultati</h3>
+              <div class="notary-pick-list">
+                {searchResults.map((item) => (
+                  <label class="notary-pick notary-pick--compact">
+                    <input type="radio" name="notary_id" value={item.id} required />
+                    <span>
+                      <strong>{titleCase(item.full_name)}</strong>
+                      <em>
+                        {item.address || 'Indirizzo n/d'}
+                        {item.comune ? ` · ${titleCase(item.comune)}` : ''}
+                        {item.owner_email ? ' · già gestita' : ''}
+                      </em>
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <div class="funnel-actions">
+                <button class="btn blue" type="submit">Continua con la selezione</button>
+              </div>
+            </form>
+          )}
+        </div>
+      )}
+
+      {step === 4 && email && selected && (
+        <form class="card funnel-card" method="post" action={`/claim/start?step=4&notary=${encodeURIComponent(selected.id)}`}>
+          <input type="hidden" name="action" value="confirm" />
+          <input type="hidden" name="notary_id" value={selected.id} />
+          <h2>4. Conferma richiesta</h2>
+          <p>
+            Richiedi la gestione di <strong>{titleCase(selected.full_name)}</strong>
+            {selected.comune ? ` · ${titleCase(selected.comune)}` : ''}.
+            Potrai modificare subito i contatti; la verifica business resta in revisione fino all’approvazione redazione.
+          </p>
+          <div class="funnel-grid">
+            <label>Nome e cognome <input required name="name" placeholder="Es. Mario Rossi" /></label>
+            <label>Telefono <input name="phone" placeholder="Utile per la verifica" /></label>
+          </div>
+          <label>
+            Ruolo
+            <select name="role">
+              <option value="titolare">Notaio titolare</option>
+              <option value="collaboratore">Collaboratore</option>
+              <option value="segreteria">Segreteria</option>
+              <option value="altro">Altro</option>
+            </select>
+          </label>
+          <label>Messaggio <textarea name="message" placeholder="Cosa vuoi aggiornare / dettagli utili"></textarea></label>
+          <div class="funnel-actions">
+            <a class="btn secondary" rel="nofollow" href={`/claim/start?step=3&notary=${encodeURIComponent(selected.id)}`}>Indietro</a>
+            <button class="btn blue" type="submit">Richiedi gestione scheda</button>
+          </div>
+        </form>
+      )}
+
+      {step === 4 && email && !selected && (
+        <div class="error">Seleziona prima uno studio. <a rel="nofollow" href="/claim/start?step=3">Torna alla selezione</a></div>
+      )}
+    </div>
+  </section>
+</BaseLayout>

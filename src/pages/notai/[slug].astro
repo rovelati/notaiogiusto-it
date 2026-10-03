@@ -1,81 +1,302 @@
 ---
+import NotaiListingMap from '../../components/NotaiListingMap.astro';
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import { euro } from '../../lib/format';
-import { asCoord, googleDirectionsUrl, openStreetMapEmbedUrl } from '../../lib/geo';
-import { getNotary, getNotaryServices, getTopServices } from '../../lib/notai';
+import { euro, slugify, titleCase } from '../../lib/format';
+import {
+  asCoord,
+  formatDistanceKm,
+  googleDirectionsUrl,
+  hasCoords,
+  isPlausibleItalianPoint,
+} from '../../lib/geo';
+import { findCapoluogo, canonicalNotaiCityPath, toLocationSlug } from '../../lib/locations';
+import {
+  getNearbyNotaries,
+  getNotary,
+  getNotaryGoogleProfile,
+  getNotaryGoogleReviews,
+  getNotaryServices,
+  getTopServices,
+} from '../../lib/notai';
+import { normalizeWebsiteUrl } from '../../lib/notary-profile';
+import { absoluteUrl } from '../../lib/site';
 
 const notary = await getNotary(Astro.params.slug || '');
 if (!notary) return Astro.redirect('/notai');
 
-const declaredServices = await getNotaryServices(notary.id, 8);
-const popularServices = await getTopServices(8);
-const services = declaredServices.length ? declaredServices : popularServices;
-const addressLine = [notary.address, notary.cap, notary.comune].filter(Boolean).join(', ');
+const websiteHref = normalizeWebsiteUrl(notary.website);
+const websiteLabel = websiteHref
+  ? websiteHref.replace(/^https?:\/\//i, '').replace(/\/$/, '')
+  : null;
+
 const lat = asCoord(notary.lat);
 const lng = asCoord(notary.lng);
+const hasMapPoint =
+  lat != null && lng != null && hasCoords({ lat, lng }) && isPlausibleItalianPoint({ lat, lng });
+const cityLabel = notary.comune ? titleCase(notary.comune) : '';
+const displayName = titleCase(notary.full_name);
+
+const [declaredServices, popularServices, nearbyRaw, googleProfile, googleReviews] = await Promise.all([
+  getNotaryServices(notary.id, 8),
+  getTopServices(8),
+  getNearbyNotaries({
+    notaryId: notary.id,
+    comune: notary.comune,
+    district: notary.district,
+    lat: hasMapPoint ? lat : null,
+    lng: hasMapPoint ? lng : null,
+    limit: 6,
+  }),
+  getNotaryGoogleProfile(notary.id),
+  getNotaryGoogleReviews(notary.id, 3),
+]);
+
+const services = declaredServices.length ? declaredServices : popularServices;
+const addressLine = [notary.address, notary.cap, notary.comune ? titleCase(notary.comune) : null]
+  .filter(Boolean)
+  .join(', ');
 const mapQuery = encodeURIComponent(addressLine || notary.full_name);
-const directionsUrl = lat != null && lng != null
-  ? googleDirectionsUrl(lat, lng)
+const directionsUrl = hasMapPoint
+  ? googleDirectionsUrl(lat!, lng!)
   : `https://www.google.com/maps/search/?api=1&query=${mapQuery}`;
-const staticMapUrl = lat != null && lng != null ? openStreetMapEmbedUrl(lat, lng, 15) : null;
-const phoneHref = notary.phone ? `tel:${notary.phone.replace(/\s+/g, '')}` : null;
-const metaDescription = `Contatti, sede, servizi e richiesta preventivo per ${notary.full_name}${notary.comune ? `, notaio a ${notary.comune}` : ''}. Profilo da fonte ufficiale Notariato.`;
-const geoJsonLd = lat != null && lng != null
-  ? {
-      '@context': 'https://schema.org',
-      '@type': 'LegalService',
-      name: notary.full_name,
-      address: addressLine || undefined,
-      geo: {
-        '@type': 'GeoCoordinates',
-        latitude: lat,
-        longitude: lng,
+const detailMapPoints = hasMapPoint
+  ? [
+      {
+        id: notary.id,
+        name: displayName,
+        slug: notary.source_slug,
+        address: addressLine,
+        lat: lat!,
+        lng: lng!,
       },
-    }
-  : null;
+    ]
+  : [];
+const phoneHref = notary.phone ? `tel:${notary.phone.replace(/\s+/g, '')}` : null;
+const googlePhotos = Array.isArray(googleProfile?.google_photos) ? googleProfile.google_photos : [];
+const googlePhoto = googlePhotos[0] || null;
+const googlePhotoAttribution = (googlePhoto?.attributions || [])
+  .map((value) => String(value).replace(/<[^>]*>/g, '').trim())
+  .filter(Boolean)
+  .join(', ');
+const googleHours = Array.isArray(googleProfile?.google_opening_hours?.weekday_text)
+  ? googleProfile.google_opening_hours.weekday_text
+  : [];
+const schemaDayOfWeek = [
+  'https://schema.org/Sunday',
+  'https://schema.org/Monday',
+  'https://schema.org/Tuesday',
+  'https://schema.org/Wednesday',
+  'https://schema.org/Thursday',
+  'https://schema.org/Friday',
+  'https://schema.org/Saturday',
+];
+const schemaTime = (value?: string) =>
+  value && /^\d{4}$/.test(value) ? `${value.slice(0, 2)}:${value.slice(2)}` : undefined;
+const googlePeriods = Array.isArray(googleProfile?.google_opening_hours?.periods)
+  ? googleProfile.google_opening_hours.periods
+  : [];
+const italyNowParts = Object.fromEntries(
+  new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Europe/Rome',
+    weekday: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  })
+    .formatToParts(new Date())
+    .map(({ type, value }) => [type, value]),
+);
+const currentDay = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(italyNowParts.weekday);
+const currentTime = Number(`${italyNowParts.hour || '00'}${italyNowParts.minute || '00'}`);
+const isOpenNow =
+  googlePeriods.length > 0
+    ? googlePeriods.some((period) => {
+        const opens = Number(period.open?.time);
+        const closes = Number(period.close?.time);
+        return period.open?.day === currentDay && opens <= currentTime && currentTime < closes;
+      })
+    : null;
+const openingHoursSpecification = googlePeriods.flatMap((period) => {
+  const day = period.open?.day;
+  const opens = schemaTime(period.open?.time);
+  const closes = schemaTime(period.close?.time);
+  if (day == null || !schemaDayOfWeek[day] || !opens || !closes) return [];
+  return [{
+    '@type': 'OpeningHoursSpecification',
+    dayOfWeek: schemaDayOfWeek[day],
+    opens,
+    closes,
+  }];
+});
+const sentimentLabel =
+  googleProfile?.sentiment_label === 'positive'
+    ? 'Prevalentemente positivo'
+    : googleProfile?.sentiment_label === 'negative'
+      ? 'Prevalentemente critico'
+      : 'Segnali misti o insufficienti';
+const reviewSampleCount = Number(googleProfile?.sentiment_payload?.sample_count || googleReviews.length || 0);
+
+const capoluogo = notary.comune ? findCapoluogo(notary.comune) : null;
+const locationSlug = capoluogo
+  ? toLocationSlug(capoluogo.name, capoluogo.province)
+  : notary.comune
+    ? slugify(notary.comune)
+    : '';
+
+const preventivoBase = `/preventivo?step=1&notary=${notary.id}${
+  notary.comune ? `&comune=${encodeURIComponent(notary.comune)}` : ''
+}`;
+
+const seeAlsoLinks = [
+  cityLabel
+    ? {
+        label: `Notai a ${cityLabel}`,
+        href: canonicalNotaiCityPath(notary.comune || cityLabel, capoluogo?.province),
+      }
+    : null,
+  cityLabel
+    ? {
+        label: `Preventivo notaio a ${cityLabel}`,
+        href: `/preventivo?step=1&comune=${encodeURIComponent(notary.comune || '')}`,
+      }
+    : null,
+  { label: 'Cerca notai', href: '/notai' },
+  { label: 'Quanto costa un notaio', href: '/quanto-costa' },
+].filter(Boolean) as Array<{ label: string; href: string }>;
+
+const quoteServiceLinks = services.slice(0, 6).map((service) => {
+  const name = service.plain_language_name || service.name;
+  const localHref =
+    locationSlug
+      ? `/quanto-costa/${locationSlug}/${service.slug}/notai`
+      : `/quanto-costa/${service.slug}`;
+  const preventivoHref = `/preventivo?step=2&servizio=${encodeURIComponent(service.slug)}${
+    notary.comune ? `&comune=${encodeURIComponent(notary.comune)}` : ''
+  }&notary=${notary.id}`;
+  return {
+    name,
+    localHref,
+    preventivoHref,
+    label: cityLabel ? `${name} a ${cityLabel}` : name,
+  };
+});
+
+const nearbyNotaries = nearbyRaw.map((item) => ({
+  ...item,
+  displayName: titleCase(item.full_name),
+  city: item.comune ? titleCase(item.comune) : '',
+  distanceLabel: formatDistanceKm(
+    typeof item.distance_km === 'number' ? item.distance_km : null,
+  ),
+}));
+
+const metaDescription = `Contatti, sede, servizi e richiesta preventivo per ${displayName}${
+  cityLabel ? `, notaio a ${cityLabel}` : ''
+}. Profilo da fonte ufficiale Notariato.`;
+const notaryJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Notary',
+  '@id': `${absoluteUrl(`/notai/${notary.source_slug}`)}#notary`,
+  url: absoluteUrl(`/notai/${notary.source_slug}`),
+  name: displayName,
+  description: metaDescription,
+  telephone: notary.phone || undefined,
+  email: notary.email || undefined,
+  address: addressLine
+    ? {
+        '@type': 'PostalAddress',
+        streetAddress: notary.address || undefined,
+        postalCode: notary.cap || undefined,
+        addressLocality: cityLabel || undefined,
+        addressCountry: 'IT',
+      }
+    : undefined,
+  geo:
+    lat != null && lng != null
+      ? {
+          '@type': 'GeoCoordinates',
+          latitude: lat,
+          longitude: lng,
+        }
+      : undefined,
+  openingHoursSpecification:
+    openingHoursSpecification.length > 0 ? openingHoursSpecification : undefined,
+  sameAs: [notary.official_reference_url, googleProfile?.google_maps_url, websiteHref].filter(Boolean),
+};
 ---
 <BaseLayout
-  title={`${notary.full_name} | Notaio a ${notary.comune || ''}`}
+  title={`${displayName} | Notaio a ${cityLabel || 'Italia'}`}
   description={metaDescription}
   canonicalPath={`/notai/${notary.source_slug}`}
-  jsonLd={geoJsonLd ? [geoJsonLd] : undefined}
+  jsonLd={[notaryJsonLd]}
 >
   <section class="notary-hero">
     <div class="notary-hero__inner">
       <div>
         <div class="notary-kicker">Notaio</div>
-        <h1>{notary.full_name}</h1>
+        <h1>{displayName}</h1>
         <p class="lead">
-          Studio notarile {notary.comune ? `a ${notary.comune}` : 'in Italia'}.
+          Studio notarile {cityLabel ? `a ${cityLabel}` : 'in Italia'}.
           Consulta i contatti, verifica la sede e richiedi un preventivo qualificato per la tua pratica.
         </p>
         <div class="notary-badges">
           {notary.is_official_notariato && <span class="trust-badge">Fonte ufficiale Notariato</span>}
           <span class="trust-badge muted">Profilo pubblico</span>
-          {declaredServices.length ? <span class="trust-badge">Servizi rilevati</span> : <span class="trust-badge muted">Servizi da confermare</span>}
+          {declaredServices.length ? (
+            <span class="trust-badge">Servizi rilevati</span>
+          ) : (
+            <span class="trust-badge muted">Servizi da confermare</span>
+          )}
         </div>
       </div>
       <div class="notary-hero-card">
         <span>Sede</span>
-        <strong>{notary.comune || 'Comune non disponibile'}</strong>
+        <strong>{cityLabel || 'Comune non disponibile'}</strong>
         <p>{addressLine || 'Indirizzo non disponibile'}</p>
       </div>
     </div>
   </section>
 
   <div class="sticky-actions">
-    {phoneHref ? <a class="btn navy" href={phoneHref}>Chiama</a> : <span class="btn disabled">Telefono non disponibile</span>}
-    <a class="btn blue" href={`/preventivo?step=1&notary=${notary.id}`}>Chiedi preventivo</a>
+    {phoneHref && <a class="btn navy" href={phoneHref}>Chiama</a>}
+    <a class="btn blue" rel="nofollow" href={preventivoBase}>Chiedi preventivo</a>
     <a class="btn secondary" rel="nofollow" target="_blank" href={directionsUrl}>Portami lì</a>
   </div>
 
   <section class="section notary-layout">
     <article class="notary-main">
+      {googlePhoto && (
+        <figure class="card google-place-photo">
+          <img
+            src={`/api/notai/${notary.id}/photo/0`}
+            alt={`Studio notarile ${displayName}`}
+            loading="eager"
+            decoding="async"
+          />
+          <figcaption>
+            Foto da Google Maps
+            {googlePhotoAttribution ? ` · ${googlePhotoAttribution}` : ''}
+          </figcaption>
+        </figure>
+      )}
+
+      {notary.description && (
+        <div class="card">
+          <h2>Lo studio</h2>
+          <p style="white-space:pre-wrap;margin:0">{notary.description}</p>
+        </div>
+      )}
+
       <div class="card">
         <div class="section-title-row">
           <h2>Contatti e sede</h2>
           {notary.official_reference_url && (
-            <a class="official-link" rel="nofollow" target="_blank" href={notary.official_reference_url}>
+            <a
+              class="official-link"
+              rel="nofollow noopener noreferrer"
+              target="_blank"
+              href={notary.official_reference_url}
+            >
               Verifica su Notariato.it
             </a>
           )}
@@ -98,25 +319,45 @@ const geoJsonLd = lat != null && lng != null
             <span>PEC</span>
             <strong>{notary.pec || 'Non disponibile'}</strong>
           </div>
-          {notary.website && (
-            <div>
-              <span>Sito web</span>
-              <strong><a rel="nofollow" target="_blank" href={notary.website}>{notary.website}</a></strong>
-            </div>
-          )}
+          <div>
+            <span>Sito web</span>
+            {websiteHref ? (
+              <strong><a rel="nofollow" target="_blank" href={websiteHref}>{websiteLabel}</a></strong>
+            ) : (
+              <strong>Non disponibile</strong>
+            )}
+          </div>
           <div>
             <span>Distretto</span>
             <strong>{notary.district || 'Non disponibile'}</strong>
           </div>
+          {googleHours.length > 0 && (
+            <div>
+              <span>Orari indicativi</span>
+              <strong>
+                {isOpenNow === true
+                  ? 'Aperto ora'
+                  : isOpenNow === false
+                    ? 'Chiuso ora'
+                    : 'Consulta gli orari'}
+              </strong>
+              <details class="google-hours" open>
+                <summary>Vedi orari Google</summary>
+                <ul>
+                  {googleHours.map((row) => <li>{row}</li>)}
+                </ul>
+              </details>
+            </div>
+          )}
         </div>
       </div>
 
       <div class="card">
-        <h2>Servizi notarili</h2>
+        <h2>{declaredServices.length ? 'Servizi notarili' : 'Pratiche per cui chiedere un preventivo'}</h2>
         <p class="muted-text">
           {declaredServices.length
-            ? 'Questi servizi risultano associati al profilo da fonti pubbliche o arricchimenti.'
-            : 'In attesa degli arricchimenti da sito, Google e fonti locali, mostriamo le pratiche notarili più richieste: disponibilità e prezzo vanno confermati dallo studio.'}
+            ? 'Queste prestazioni risultano pubblicamente associate allo studio. Disponibilità e prezzo finale vanno sempre confermati con il notaio.'
+            : 'Non abbiamo ancora conferma delle singole prestazioni offerte da questo studio. Scegli la pratica di tuo interesse: disponibilità e prezzo saranno confermati direttamente dal notaio.'}
         </p>
         <div class="service-chip-grid">
           {services.map((service) => (
@@ -128,24 +369,103 @@ const geoJsonLd = lat != null && lng != null
         </div>
       </div>
 
-      <div class="card">
-        <h2>Recensioni e reputazione</h2>
-        <p class="muted-text">
-          Le recensioni Google e la sintesi AI non sono ancora disponibili in questo MVP. Quando collegheremo le API Google,
-          mostreremo valutazione, temi ricorrenti, punti forti, aspetti da chiarire e possibili servizi citati dagli utenti.
-        </p>
-        <div class="empty-panel">
-          <strong>Prossimo arricchimento</strong>
-          <span>Recensioni Google, classificazione semantica e servizi ricavati dalle opinioni.</span>
+      {quoteServiceLinks.length > 0 && (
+        <div class="card">
+          <h2>{cityLabel ? `Preventivi e costi a ${cityLabel}` : 'Preventivi e costi'}</h2>
+          <p class="muted-text">
+            Pagine utili per confrontare costi indicativi e chiedere un preventivo a questo studio
+            {cityLabel ? ` o ad altri notai a ${cityLabel}` : ''}.
+          </p>
+          <div class="seo-link-grid">
+            {quoteServiceLinks.map((link) => (
+              <div class="seo-link-card">
+                <strong>{link.label}</strong>
+                <div class="seo-link-card__actions">
+                  <a href={link.localHref}>Notai e costi</a>
+                  <a rel="nofollow" href={link.preventivoHref}>Preventivo</a>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
+
+      {googleProfile?.rating_avg && (
+        <div class="card">
+          <h2>Recensioni e reputazione</h2>
+          <div class="google-reputation">
+            <div class="google-reputation__summary">
+              <div>
+                <strong>{googleProfile.rating_avg.toFixed(1)} / 5</strong>
+                <span>
+                  {googleProfile.review_count.toLocaleString('it-IT')} recensioni su Google
+                </span>
+              </div>
+              <span class={`sentiment-badge sentiment-badge--${googleProfile.sentiment_label || 'neutral'}`}>
+                {sentimentLabel}
+              </span>
+            </div>
+
+            {googleProfile.strengths.length > 0 && (
+              <div class="review-theme-block">
+                <strong>Temi positivi ricorrenti</strong>
+                <div class="review-theme-list">
+                  {googleProfile.strengths.map((item) => <span>{item}</span>)}
+                </div>
+              </div>
+            )}
+
+            {googleProfile.concerns.length > 0 && (
+              <div class="review-theme-block review-theme-block--attention">
+                <strong>Aspetti con segnali critici nel campione</strong>
+                <div class="review-theme-list">
+                  {googleProfile.concerns.map((item) => <span>{item}</span>)}
+                </div>
+              </div>
+            )}
+
+            {googleReviews.length > 0 && (
+              <div class="google-review-list">
+                {googleReviews.map((review) => (
+                  <blockquote>
+                    <div>
+                      <strong>{review.author_name || 'Utente Google'}</strong>
+                      <span>{review.rating ? `${review.rating.toFixed(0)} / 5` : ''}</span>
+                    </div>
+                    <p>{review.text}</p>
+                  </blockquote>
+                ))}
+              </div>
+            )}
+
+            <p class="review-disclosure">
+              Sintesi automatica basata su {reviewSampleCount} recensioni mostrate dall’API rispetto a{' '}
+              {googleProfile.review_count.toLocaleString('it-IT')} valutazioni complessive: il campione può
+              non rappresentare tutte le esperienze. Dati da Google, da verificare direttamente sulla fonte.
+            </p>
+            {googleProfile.google_maps_url && (
+              <a
+                class="inline-action"
+                rel="nofollow noopener noreferrer"
+                target="_blank"
+                href={googleProfile.google_maps_url}
+              >
+                Leggi tutte le recensioni su Google Maps
+              </a>
+            )}
+          </div>
+        </div>
+      )}
 
       <div class="card claim-callout">
         <div>
           <h2>Sei questo notaio?</h2>
-          <p>Accedi all area notai per aggiornare dati, servizi, disponibilità, contenuti e ricevere richieste più complete.</p>
+          <p>
+            Richiedi gratis la gestione della scheda: aggiorni contatti e servizi, poi ricevi preventivi più completi.
+            Ti spieghiamo i passaggi (ricerca scheda, richiesta, verifica, area notai).
+          </p>
         </div>
-        <a class="btn" href={`/claim?notary=${notary.id}`}>Aggiorna il profilo</a>
+        <a class="btn" rel="nofollow" href={`/claim/start?notary=${notary.id}`}>Aggiorna gratis la scheda</a>
       </div>
     </article>
 
@@ -155,14 +475,16 @@ const geoJsonLd = lat != null && lng != null
           <h2>Mappa</h2>
           <a class="official-link" rel="nofollow" target="_blank" href={directionsUrl}>Indicazioni</a>
         </div>
-        {staticMapUrl ? (
-          <>
-            <iframe title={`Mappa ${notary.full_name}`} src={staticMapUrl} loading="lazy"></iframe>
-            <p class="helper-text map-embed-note">Mappa incorporata OpenStreetMap. Le indicazioni stradali restano un link secondario.</p>
-          </>
+        {hasMapPoint ? (
+          <NotaiListingMap
+            points={detailMapPoints}
+            locationLabel={cityLabel}
+            embedded
+            showHead={false}
+          />
         ) : (
           <div class="map-fallback">
-            <strong>{notary.comune || 'Sede'}</strong>
+            <strong>{cityLabel || 'Sede'}</strong>
             <span>{addressLine || 'Coordinate non ancora disponibili per la mappa incorporata.'}</span>
             <a class="btn secondary" rel="nofollow" target="_blank" href={directionsUrl}>Cerca indicazioni</a>
           </div>
@@ -170,16 +492,83 @@ const geoJsonLd = lat != null && lng != null
       </div>
 
       <div id="preventivo" class="quote-box quote-box--notary">
-        <h2>Chiedi un preventivo</h2>
+        <h2>Chiedi un preventivo a {displayName}</h2>
         <p>
-          Parte con questo notaio già selezionato. Nel funnel puoi aggiungere fino a altri 2 studi nella stessa zona
-          e completare i dati della pratica.
+          Questo studio è già selezionato. Indica la pratica e i tuoi contatti; prima dell’invio potrai aggiungere
+          altri notai della zona e confrontare le risposte.
         </p>
-        <a class="btn blue" href={`/preventivo?step=1&notary=${notary.id}${notary.comune ? `&comune=${encodeURIComponent(notary.comune)}` : ''}`}>
-          Avvia preventivo con questo notaio
+        <a class="btn blue" rel="nofollow" href={preventivoBase}>
+          Continua con questo studio
         </a>
-        <p class="helper-text">I servizi mostrati sopra restano distinti: ufficiali/arricchiti vs solo richiesti dall’utente.</p>
+        {cityLabel && (
+          <a class="btn secondary" rel="nofollow" href={`/preventivo?step=1&comune=${encodeURIComponent(notary.comune || '')}`}>
+            Confronta più notai a {cityLabel}
+          </a>
+        )}
       </div>
+
+      {seeAlsoLinks.length > 0 && (
+        <div class="card">
+          <h2>Vedi anche</h2>
+          <div class="see-also-links">
+            {seeAlsoLinks.map((link) => (
+              <a href={link.href}>{link.label}</a>
+            ))}
+          </div>
+        </div>
+      )}
     </aside>
   </section>
+
+  {nearbyNotaries.length > 0 && (
+    <section class="section nearby-section">
+      <div class="section-heading">
+        <h2>{cityLabel ? `Altri notai vicini a ${cityLabel}` : 'Altri notai vicini'}</h2>
+        <p>
+          Alternative nella stessa zona per confrontare sede, contatti e preventivo
+          {cityLabel ? ` a ${cityLabel}` : ''}.
+        </p>
+      </div>
+      <div class="nearby-notary-grid">
+        {nearbyNotaries.map((nearby) => (
+          <article class="card nearby-notary-card">
+            <h3>
+              <a href={`/notai/${nearby.source_slug}`}>{nearby.displayName}</a>
+            </h3>
+            <address>
+              {nearby.address || 'Indirizzo non disponibile'}
+              {nearby.city && ` · ${nearby.city}`}
+            </address>
+            <div class="result-badges">
+              {nearby.is_official_notariato && <span>Fonte ufficiale Notariato</span>}
+              {nearby.distanceLabel && <span class="geo-signal">A circa {nearby.distanceLabel}</span>}
+              {!nearby.distanceLabel && nearby.city && cityLabel && nearby.city === cityLabel && (
+                <span>Stesso comune</span>
+              )}
+            </div>
+            <div class="nearby-notary-card__actions">
+              {nearby.phone && <a class="btn navy" href={`tel:${nearby.phone.replace(/\s+/g, '')}`}>Chiama</a>}
+              <a
+                class="btn blue"
+                rel="nofollow"
+                href={`/preventivo?step=1&notary=${nearby.id}${
+                  nearby.comune ? `&comune=${encodeURIComponent(nearby.comune)}` : ''
+                }`}
+              >
+                Preventivo
+              </a>
+              <a class="btn secondary" href={`/notai/${nearby.source_slug}`}>Scheda</a>
+            </div>
+          </article>
+        ))}
+      </div>
+      {cityLabel && (
+        <p class="nearby-more">
+          <a href={canonicalNotaiCityPath(notary.comune || cityLabel, capoluogo?.province)}>
+            Vedi tutti i notai a {cityLabel}
+          </a>
+        </p>
+      )}
+    </section>
+  )}
 </BaseLayout>
