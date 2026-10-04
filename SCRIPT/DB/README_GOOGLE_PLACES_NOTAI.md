@@ -76,7 +76,7 @@ python3 enrich_google_places_notai.py \
 
 ## Batch quotidiano e report email
 
-`run_google_places_daily.py` seleziona al massimo 5 notai non controllati negli
+`run_google_places_daily.py` seleziona al massimo 8 notai non controllati negli
 ultimi 30 giorni, applica l'arricchimento con un limite di spesa e invia via
 SMTP Brevo un riepilogo HTML. Il report JSON resta in `SCRIPT/DB/state/`.
 
@@ -84,8 +84,8 @@ Esecuzione manuale:
 
 ```bash
 python3 SCRIPT/DB/run_google_places_daily.py \
-  --limit 5 \
-  --max-cost-usd 0.65 \
+  --limit 8 \
+  --max-cost-usd 1.00 \
   --email-to romolo.velati@gmail.com
 ```
 
@@ -102,7 +102,7 @@ python3 SCRIPT/DB/run_google_places_daily.py \
 Per l'esecuzione automatica ogni mattina alle 07:00:
 
 ```cron
-0 7 * * * cd /var/www/notaiogiusto-it && python3 SCRIPT/DB/run_google_places_daily.py --limit 5 --max-cost-usd 0.65 --email-to romolo.velati@gmail.com >> /var/log/notaiogiusto_google_daily.log 2>&1
+0 7 * * * cd /var/www/notaiogiusto-it && git pull origin main && python3 SCRIPT/DB/run_google_places_daily.py --limit 8 --max-cost-usd 1.00 --email-to romolo.velati@gmail.com >> /var/log/notaiogiusto_google_daily.log 2>&1
 ```
 
 ## Foto e recensioni
