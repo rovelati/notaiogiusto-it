@@ -1,6 +1,7 @@
 ---
 import NotaiSearchBar from '../../../components/NotaiSearchBar.astro';
 import NotaiSearchResults from '../../../components/NotaiSearchResults.astro';
+import AdSlot from '../../../components/AdSlot.astro';
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import { titleCase } from '../../../lib/format';
 import {
@@ -213,6 +214,8 @@ const jsonLd = [listJsonLd, faqJsonLd].filter(Boolean);
     paginationBasePath={paginationBase}
     nearMeActive={false}
   />
+
+  <AdSlot minHeight={120} />
 
   {locationResult.page === 1 && (
     <section class="section listing-faq" aria-label="Domande su costi e preventivo">

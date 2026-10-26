@@ -55,6 +55,7 @@ const navItems = [
     <link rel="canonical" href={canonical} />
     <meta name="robots" content={noindex ? 'noindex,nofollow,noarchive' : 'index,follow,max-image-preview:large'} />
     <meta name="googlebot" content={noindex ? 'noindex,nofollow,noarchive' : 'index,follow,max-image-preview:large'} />
+    <meta name="google-adsense-account" content="ca-pub-2168172914069272" />
     {author && <meta name="author" content={author} />}
     <meta name="theme-color" content="#173B6C" />
     <meta name="application-name" content={siteConfig.name} />
@@ -81,14 +82,45 @@ const navItems = [
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={shareImage} />
+    <!-- Preload Fonts & CSS -->
     <link rel="preload" href="/fonts/source-sans-3-latin.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/source-serif-4-latin.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="/styles.css?v=20261003-1" />
+
+    <!-- DNS prefetch per tutela performance FCP/LCP -->
+    <link rel="dns-prefetch" href="https://cmp.uniconsent.com" />
+    <link rel="dns-prefetch" href="https://pagead2.googlesyndication.com" />
+
+    <!-- Google Consent Mode v2 (default denial prima di CMP e Tag) -->
+    <script is:inline>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      window.gtag = gtag;
+      gtag('consent', 'default', {
+        'ad_storage': 'denied',
+        'ad_user_data': 'denied',
+        'ad_personalization': 'denied',
+        'analytics_storage': 'denied',
+        'wait_for_update': 500
+      });
+    </script>
+
+    <!-- UniConsent CMP (Consent Management Platform IAB TCF v2.2) -->
     <script
       is:inline
       async
+      fetchpriority="low"
       src="https://cmp.uniconsent.com/v2/cmp.js"
       data-license="a635480a30"
+    ></script>
+
+    <!-- Google AdSense (Auto Ads & Ad units) -->
+    <script
+      is:inline
+      async
+      fetchpriority="low"
+      crossorigin="anonymous"
+      src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2168172914069272"
     ></script>
     <script is:inline>
       (() => {

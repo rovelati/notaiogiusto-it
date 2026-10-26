@@ -1,7 +1,8 @@
 ---
 import NotaiListingMap from '../../components/NotaiListingMap.astro';
+import AdSlot from '../../components/AdSlot.astro';
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import { euro, slugify, titleCase } from '../../lib/format';
+import { euro, parseItalianPhones, schemaTelephone, slugify, telHref, titleCase } from '../../lib/format';
 import {
   asCoord,
   formatDistanceKm,
@@ -21,8 +22,13 @@ import {
 import { normalizeWebsiteUrl } from '../../lib/notary-profile';
 import { absoluteUrl } from '../../lib/site';
 
-const notary = await getNotary(Astro.params.slug || '');
+const requestedSlug = Astro.params.slug || '';
+const notary = await getNotary(requestedSlug);
 if (!notary) return Astro.redirect('/notai');
+const canonicalSlug = notary.source_slug.toLowerCase();
+if (requestedSlug !== canonicalSlug) {
+  return Astro.redirect(`/notai/${canonicalSlug}`, 301);
+}
 
 const websiteHref = normalizeWebsiteUrl(notary.website);
 const websiteLabel = websiteHref
@@ -64,14 +70,15 @@ const detailMapPoints = hasMapPoint
       {
         id: notary.id,
         name: displayName,
-        slug: notary.source_slug,
+    slug: canonicalSlug,
         address: addressLine,
         lat: lat!,
         lng: lng!,
       },
     ]
   : [];
-const phoneHref = notary.phone ? `tel:${notary.phone.replace(/\s+/g, '')}` : null;
+const phones = parseItalianPhones(notary.phone);
+const phoneHref = phones[0] ? telHref(phones[0]) : null;
 const googlePhotos = Array.isArray(googleProfile?.google_photos) ? googleProfile.google_photos : [];
 const googlePhoto = googlePhotos[0] || null;
 const googlePhotoAttribution = (googlePhoto?.attributions || [])
@@ -158,11 +165,12 @@ const seeAlsoLinks = [
     ? {
         label: `Preventivo notaio a ${cityLabel}`,
         href: `/preventivo?step=1&comune=${encodeURIComponent(notary.comune || '')}`,
+        nofollow: true,
       }
     : null,
   { label: 'Cerca notai', href: '/notai' },
   { label: 'Quanto costa un notaio', href: '/quanto-costa' },
-].filter(Boolean) as Array<{ label: string; href: string }>;
+].filter(Boolean) as Array<{ label: string; href: string; nofollow?: boolean }>;
 
 const quoteServiceLinks = services.slice(0, 6).map((service) => {
   const name = service.plain_language_name || service.name;
@@ -196,11 +204,11 @@ const metaDescription = `Contatti, sede, servizi e richiesta preventivo per ${di
 const notaryJsonLd = {
   '@context': 'https://schema.org',
   '@type': 'Notary',
-  '@id': `${absoluteUrl(`/notai/${notary.source_slug}`)}#notary`,
-  url: absoluteUrl(`/notai/${notary.source_slug}`),
+  '@id': `${absoluteUrl(`/notai/${canonicalSlug}`)}#notary`,
+  url: absoluteUrl(`/notai/${canonicalSlug}`),
   name: displayName,
   description: metaDescription,
-  telephone: notary.phone || undefined,
+  telephone: schemaTelephone(notary.phone),
   email: notary.email || undefined,
   address: addressLine
     ? {
@@ -227,7 +235,7 @@ const notaryJsonLd = {
 <BaseLayout
   title={`${displayName} | Notaio a ${cityLabel || 'Italia'}`}
   description={metaDescription}
-  canonicalPath={`/notai/${notary.source_slug}`}
+  canonicalPath={`/notai/${canonicalSlug}`}
   jsonLd={[notaryJsonLd]}
 >
   <section class="notary-hero">
@@ -309,7 +317,18 @@ const notaryJsonLd = {
           </div>
           <div>
             <span>Telefono</span>
-            {notary.phone ? <strong><a href={phoneHref}>{notary.phone}</a></strong> : <strong>Non disponibile</strong>}
+            {phones.length ? (
+              <strong>
+                {phones.map((phone, index) => (
+                  <>
+                    {index > 0 ? ' · ' : ''}
+                    <a href={telHref(phone)}>{phone}</a>
+                  </>
+                ))}
+              </strong>
+            ) : (
+              <strong>Non disponibile</strong>
+            )}
           </div>
           <div>
             <span>Email</span>
@@ -457,6 +476,8 @@ const notaryJsonLd = {
         </div>
       )}
 
+      <AdSlot minHeight={100} />
+
       <div class="card claim-callout">
         <div>
           <h2>Sei questo notaio?</h2>
@@ -512,7 +533,7 @@ const notaryJsonLd = {
           <h2>Vedi anche</h2>
           <div class="see-also-links">
             {seeAlsoLinks.map((link) => (
-              <a href={link.href}>{link.label}</a>
+              <a href={link.href} rel={link.nofollow ? 'nofollow' : undefined}>{link.label}</a>
             ))}
           </div>
         </div>

@@ -1,0 +1,114 @@
+---
+interface Props {
+  slot?: string;
+  format?: 'auto' | 'fluid' | 'rectangle' | 'horizontal';
+  minHeight?: number;
+  className?: string;
+}
+
+const {
+  slot,
+  format = 'auto',
+  minHeight = 100,
+  className = '',
+} = Astro.props;
+
+const adClient = 'ca-pub-2168172914069272';
+---
+
+<aside
+  class={`ng-ad-container ${className}`}
+  aria-label="Spazio pubblicitario"
+>
+  <div class="ng-ad-label">
+    <span>Pubblicità</span>
+  </div>
+  <div class="ng-ad-frame" style={`min-height: ${minHeight}px;`}>
+    <ins
+      class="adsbygoogle"
+      style={`display:block; min-height: ${minHeight}px; width:100%;`}
+      data-ad-client={adClient}
+      {...(slot ? { 'data-ad-slot': slot } : {})}
+      data-ad-format={format}
+      data-full-width-responsive="true"
+    ></ins>
+  </div>
+</aside>
+
+<script is:inline>
+  (function () {
+    if (typeof window === 'undefined') return;
+    if (window.__ngAdsInit) return;
+    window.__ngAdsInit = true;
+
+    function pushAd(ins) {
+      if (!ins || ins.getAttribute('data-ng-loaded') === '1') return;
+      ins.setAttribute('data-ng-loaded', '1');
+      try {
+        (window.adsbygoogle = window.adsbygoogle || []).push({});
+      } catch (e) {
+        // Fallback or ad blocker active
+      }
+    }
+
+    function initAds() {
+      var slots = document.querySelectorAll('ins.adsbygoogle:not([data-ng-loaded])');
+      if (!slots.length) return;
+
+      if ('IntersectionObserver' in window) {
+        var observer = new IntersectionObserver(
+          function (entries, obs) {
+            entries.forEach(function (entry) {
+              if (entry.isIntersecting) {
+                obs.unobserve(entry.target);
+                pushAd(entry.target);
+              }
+            });
+          },
+          { rootMargin: '250px 0px' }
+        );
+        slots.forEach(function (slot) {
+          observer.observe(slot);
+        });
+      } else {
+        slots.forEach(pushAd);
+      }
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initAds);
+    } else {
+      initAds();
+    }
+  })();
+</script>
+
+<style>
+  .ng-ad-container {
+    margin: 2rem auto;
+    max-width: 100%;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--line, #e2e8f0);
+    background: var(--soft, #f8fafc);
+    text-align: center;
+  }
+  .ng-ad-label {
+    margin-bottom: 0.5rem;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted, #94a3b8);
+    user-select: none;
+  }
+  .ng-ad-frame {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+  }
+  .ng-ad-container:has(ins[data-ad-status="unfilled"]) {
+    display: none !important;
+  }
+</style>

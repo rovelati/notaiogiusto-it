@@ -57,6 +57,7 @@ const legalLinks = [
         {legalLinks.map((link) => (
           <li><a href={link.href}>{link.label}</a></li>
         ))}
+        <li><a href="javascript:void(0)" onclick="window.__uniconsent && window.__uniconsent.openConsent ? window.__uniconsent.openConsent() : null">Preferenze cookie</a></li>
       </ul>
     </section>
 
@@ -83,6 +84,7 @@ const legalLinks = [
         {legalLinks.map((link) => (
           <a href={link.href}>{link.label}</a>
         ))}
+        <a href="javascript:void(0)" onclick="window.__uniconsent && window.__uniconsent.openConsent ? window.__uniconsent.openConsent() : null">Preferenze cookie</a>
       </div>
     </div>
   </div>
