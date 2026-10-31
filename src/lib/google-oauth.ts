@@ -8,24 +8,24 @@ const STATE_TTL_MS = 10 * 60 * 1000;
 
 function getAuthSecret() {
   return String(
-    import.meta.env.AUTH_SECRET ||
-      process.env.AUTH_SECRET ||
-      import.meta.env.ADMIN_TOKEN ||
+    process.env.AUTH_SECRET ||
+      import.meta.env.AUTH_SECRET ||
       process.env.ADMIN_TOKEN ||
+      import.meta.env.ADMIN_TOKEN ||
       '',
   ).trim();
 }
 
 export function getGoogleOAuthConfig() {
   const clientId = String(
-    import.meta.env.GOOGLE_OAUTH_CLIENT_ID || process.env.GOOGLE_OAUTH_CLIENT_ID || '',
+    process.env.GOOGLE_OAUTH_CLIENT_ID || import.meta.env.GOOGLE_OAUTH_CLIENT_ID || '',
   ).trim();
   const clientSecret = String(
-    import.meta.env.GOOGLE_OAUTH_CLIENT_SECRET || process.env.GOOGLE_OAUTH_CLIENT_SECRET || '',
+    process.env.GOOGLE_OAUTH_CLIENT_SECRET || import.meta.env.GOOGLE_OAUTH_CLIENT_SECRET || '',
   ).trim();
   const redirectUri = String(
-    import.meta.env.GOOGLE_OAUTH_REDIRECT_URI ||
-      process.env.GOOGLE_OAUTH_REDIRECT_URI ||
+    process.env.GOOGLE_OAUTH_REDIRECT_URI ||
+      import.meta.env.GOOGLE_OAUTH_REDIRECT_URI ||
       `${getSiteUrl()}/api/auth/google/callback`,
   ).trim();
   return { clientId, clientSecret, redirectUri, configured: Boolean(clientId && clientSecret && redirectUri) };
@@ -78,7 +78,7 @@ export function verifyOAuthState(token: string | null | undefined) {
 }
 
 export function oauthStateCookieOptions() {
-  const siteUrl = String(import.meta.env.SITE_URL || process.env.SITE_URL || '');
+  const siteUrl = String(process.env.SITE_URL || import.meta.env.SITE_URL || '');
   return {
     name: STATE_COOKIE,
     httpOnly: true as const,

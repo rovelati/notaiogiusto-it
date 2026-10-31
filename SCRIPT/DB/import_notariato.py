@@ -79,7 +79,7 @@ def parse_date(value: str | None) -> str | None:
 
 def slug_from_url(url: str) -> str:
     path = urllib.parse.urlparse(url).path.rstrip("/")
-    return path.split("/")[-1]
+    return path.split("/")[-1].lower()
 
 
 def is_valid_notary_url(url: str) -> bool:
@@ -104,12 +104,22 @@ def split_name(full_name: str) -> tuple[str | None, str | None]:
 def split_phones(phone: str | None) -> list[str]:
     if not phone:
         return []
-    chunks = re.split(r"[;,/]|(?:\s+-\s+)", phone)
-    phones = []
+    chunks = re.split(
+        r"\s*(?:[,;|]|\r?\n)\s*|(?<=\d)\s+(?=(?:\+?39\s*)?(?:0\d{1,4}\s*[/.-]|3\d{2}\b))",
+        phone.replace("\u00a0", " "),
+    )
+    phones: list[str] = []
+    seen: set[str] = set()
     for chunk in chunks:
         cleaned = normalize_space(chunk)
-        if cleaned:
+        digits = re.sub(r"\D", "", cleaned or "")
+        if digits.startswith("0039"):
+            digits = digits[4:]
+        elif digits.startswith("39") and len(digits) > 10:
+            digits = digits[2:]
+        if 6 <= len(digits) <= 11 and digits not in seen:
             phones.append(cleaned)
+            seen.add(digits)
     return phones
 
 

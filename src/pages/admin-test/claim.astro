@@ -56,7 +56,7 @@ const claims = await listAdminClaims(150);
               <span>Scheda</span>
               <strong>
                 {claim.notary_slug
-                  ? <a href={`/notai/${claim.notary_slug}`}>Apri scheda</a>
+                  ? <a href={`/notai/${claim.notary_slug.toLowerCase()}`}>Apri scheda</a>
                   : '—'}
               </strong>
             </div>

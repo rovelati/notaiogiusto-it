@@ -233,7 +233,7 @@ const notaryJsonLd = {
 };
 ---
 <BaseLayout
-  title={`${displayName} | Notaio a ${cityLabel || 'Italia'}`}
+  title={`Notaio ${displayName} a ${cityLabel || 'Italia'} | Studio e Contatti - NotaioGiusto.it`}
   description={metaDescription}
   canonicalPath={`/notai/${canonicalSlug}`}
   jsonLd={[notaryJsonLd]}
@@ -554,7 +554,7 @@ const notaryJsonLd = {
         {nearbyNotaries.map((nearby) => (
           <article class="card nearby-notary-card">
             <h3>
-              <a href={`/notai/${nearby.source_slug}`}>{nearby.displayName}</a>
+              <a href={`/notai/${(nearby.source_slug || '').toLowerCase()}`}>{nearby.displayName}</a>
             </h3>
             <address>
               {nearby.address || 'Indirizzo non disponibile'}
@@ -578,7 +578,7 @@ const notaryJsonLd = {
               >
                 Preventivo
               </a>
-              <a class="btn secondary" href={`/notai/${nearby.source_slug}`}>Scheda</a>
+              <a class="btn secondary" href={`/notai/${(nearby.source_slug || '').toLowerCase()}`}>Scheda</a>
             </div>
           </article>
         ))}

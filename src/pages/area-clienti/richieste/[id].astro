@@ -81,7 +81,7 @@ const snapshot = Array.isArray(details.properties_snapshot) ? details.properties
               <span>
                 {item.comune ? titleCase(item.comune) : '—'}
                 {item.source_slug ? ` · ` : ''}
-                {item.source_slug ? <a href={`/notai/${item.source_slug}`}>Scheda</a> : null}
+                {item.source_slug ? <a href={`/notai/${item.source_slug.toLowerCase()}`}>Scheda</a> : null}
                 {' · '}{item.status}
               </span>
             </li>

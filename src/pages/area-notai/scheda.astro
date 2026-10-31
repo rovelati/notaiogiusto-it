@@ -82,7 +82,7 @@ const claimLabel =
             <div class="funnel-context">
               <span class="funnel-context__service"><strong>{claimLabel}</strong></span>
               <span>{email}</span>
-              <a href={`/notai/${notary.source_slug}`}>Vedi scheda pubblica</a>
+              <a href={`/notai/${(notary.source_slug || '').toLowerCase()}`}>Vedi scheda pubblica</a>
             </div>
             <p class="helper-text">
               Nome ufficiale e slug restano dalla fonte Notariato. Qui aggiorni contatti e testo pubblico.
@@ -113,7 +113,7 @@ const claimLabel =
             </label>
             <div class="funnel-actions">
               <button class="btn blue" type="submit">Salva modifiche</button>
-              <a class="btn secondary" href={`/notai/${notary.source_slug}`}>Anteprima pubblica</a>
+              <a class="btn secondary" href={`/notai/${(notary.source_slug || '').toLowerCase()}`}>Anteprima pubblica</a>
               <a class="btn secondary" href="/area-notai/esci">Esci</a>
             </div>
           </form>

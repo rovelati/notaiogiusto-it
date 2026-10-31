@@ -197,7 +197,7 @@ export async function buildLocalQuantoCostaUrls(): Promise<SitemapUrl[]> {
 export async function buildNotaiUrls(): Promise<SitemapUrl[]> {
   const rows = await getPublishedNotarySlugs(6000);
   return rows.map((row) => ({
-    path: `/notai/${row.source_slug}`,
+    path: `/notai/${(row.source_slug || '').toLowerCase()}`,
     bucket: 'notai',
     changefreq: 'monthly',
     priority: 0.65,

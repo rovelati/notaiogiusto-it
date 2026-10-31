@@ -160,7 +160,7 @@ const officialCount = result.notaries.filter((notary) => notary.is_official_nota
               <div>
                 <div class="result-title-row">
                   <span class="result-rank">{startRank + index + 1}</span>
-                  <h3><a href={`/notai/${notary.source_slug}`}>{notaryName}</a></h3>
+                  <h3><a href={`/notai/${(notary.source_slug || '').toLowerCase()}`}>{notaryName}</a></h3>
                   {notary.is_official_notariato ? (
                     <span
                       class="official-mark"
@@ -180,7 +180,7 @@ const officialCount = result.notaries.filter((notary) => notary.is_official_nota
                   <a class="btn navy" href={`tel:${notary.phone}`}>Chiama</a>
                 ) : null}
                 <a class="btn blue" rel="nofollow" href={quoteHref}>Preventivo</a>
-                <a class="btn secondary" href={`/notai/${notary.source_slug}`}>Scheda</a>
+                <a class="btn secondary" href={`/notai/${(notary.source_slug || '').toLowerCase()}`}>Scheda</a>
               </div>
             </article>
           );

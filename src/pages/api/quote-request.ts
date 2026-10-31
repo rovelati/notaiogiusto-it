@@ -181,10 +181,17 @@ export const POST: APIRoute = async ({ request, redirect }) => {
       id: string;
       full_name: string;
       recipient_email: string | null;
+      source_slug: string;
+      is_verified: boolean;
     }>(
       `
       select id, full_name,
-             coalesce(nullif(owner_email, ''), nullif(email, '')) as recipient_email
+             case
+               when profile_status = 'verified' then coalesce(nullif(owner_email, ''), nullif(email, ''))
+               else nullif(email, '')
+             end as recipient_email,
+             source_slug,
+             profile_status = 'verified' as is_verified
       from notai.notaries
       where status = 'published' and id = any($1::uuid[])
       `,
@@ -211,6 +218,8 @@ export const POST: APIRoute = async ({ request, redirect }) => {
           id: notary.id,
           fullName: notary.full_name,
           email: notary.recipient_email,
+          slug: notary.source_slug,
+          isVerified: notary.is_verified,
         });
       }
     }

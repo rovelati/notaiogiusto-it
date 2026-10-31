@@ -14,6 +14,8 @@ from email.message import EmailMessage
 from pathlib import Path
 from typing import Any
 
+from notify_indexing import notify_from_report
+
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = SCRIPT_DIR.parent.parent
@@ -40,6 +42,7 @@ def load_environment() -> None:
     for path in (
         PROJECT_DIR / ".env",
         PROJECT_DIR / "google-places.env",
+        PROJECT_DIR / "indexing.env",
         PROJECT_DIR / "smtp-brevo.env",
         SCRIPT_DIR / ".env",
     ):
@@ -95,7 +98,12 @@ def status_label(status: str) -> str:
     }.get(status, status or "Sconosciuto")
 
 
-def build_email(report: dict[str, Any], run_output: str = "", test: bool = False) -> tuple[str, str, str]:
+def build_email(
+    report: dict[str, Any],
+    run_output: str = "",
+    test: bool = False,
+    indexing: dict[str, Any] | None = None,
+) -> tuple[str, str, str]:
     now = dt.datetime.now().astimezone()
     summary = report.get("summary") or {}
     rows = report.get("rows") or []
@@ -131,6 +139,34 @@ def build_email(report: dict[str, Any], run_output: str = "", test: bool = False
             "</p>"
         ),
     ]
+
+    if indexing:
+        indexnow = indexing.get("indexnow") or {}
+        google = indexing.get("google") or {}
+        notified = int(indexnow.get("submitted") or 0)
+        indexnow_status = str(indexnow.get("status") or "sconosciuto")
+        indexnow_http = indexnow.get("http_status")
+        indexnow_error = indexnow.get("error")
+        indexnow_detail = (
+            f"{indexnow_status}"
+            + (f" (HTTP {indexnow_http})" if indexnow_http else "")
+            + (f": {indexnow_error}" if indexnow_error else "")
+        )
+        text_lines.extend(
+            [
+                "Indicizzazione:",
+                f"- Bing/IndexNow: {notified} URL, {indexnow_detail}",
+                f"- Google: lastmod aggiornato in {google.get('sitemap', '-')}",
+                "",
+            ]
+        )
+        html_parts.append(
+            "<p>"
+            f"<strong>Bing/IndexNow:</strong> {notified} URL, {html.escape(indexnow_detail)}<br>"
+            f"<strong>Google:</strong> lastmod aggiornato nella "
+            f'<a href="{html.escape(str(google.get("sitemap") or ""))}">sitemap notai</a>'
+            "</p>"
+        )
 
     if not rows:
         text_lines.append("Nessun notaio da processare.")
@@ -254,9 +290,11 @@ def main() -> int:
     stamp = dt.datetime.now().astimezone().strftime("%Y%m%d")
     report_path = STATE_DIR / f"google-places-daily-{stamp}.json"
     return_code, report, output = run_enrichment(args.limit, args.max_cost_usd, report_path)
-    subject, text, html_body = build_email(report, output)
+    indexing = notify_from_report(report)
+    subject, text, html_body = build_email(report, output, indexing=indexing)
     send_email(args.email_to, subject, text, html_body)
     print(json.dumps(report.get("summary") or {}, ensure_ascii=False))
+    print(json.dumps({"indexing": indexing}, ensure_ascii=False))
     print(f"Report: {report_path}")
     print(f"Email inviata a {args.email_to}")
     return return_code

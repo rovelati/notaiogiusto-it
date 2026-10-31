@@ -1,7 +1,7 @@
 ---
 import BaseLayout from '../../../../layouts/BaseLayout.astro';
 import LegalDisclaimer from '../../../../components/LegalDisclaimer.astro';
-import { euro, titleCase } from '../../../../lib/format';
+import { euro, schemaTelephone, titleCase } from '../../../../lib/format';
 import { formatDistanceKm, locationScopeNote } from '../../../../lib/geo';
 import { parseLocationSlug } from '../../../../lib/locations';
 import { getService, MAX_QUOTE_NOTARIES, searchNotariesForLocation } from '../../../../lib/notai';
@@ -109,10 +109,10 @@ const notariesJsonLd = {
     position: index + 1,
     item: {
       '@type': 'Notary',
-      '@id': `${absoluteUrl(`/notai/${notary.source_slug}`)}#notary`,
+      '@id': `${absoluteUrl(`/notai/${(notary.source_slug || '').toLowerCase()}`)}#notary`,
       name: titleCase(notary.full_name),
-      url: absoluteUrl(`/notai/${notary.source_slug}`),
-      telephone: notary.phone || undefined,
+      url: absoluteUrl(`/notai/${(notary.source_slug || '').toLowerCase()}`),
+      telephone: schemaTelephone(notary.phone),
       address: notary.address
         ? {
             '@type': 'PostalAddress',
@@ -198,7 +198,7 @@ const notariesJsonLd = {
                   >
                     Preventivo
                   </a>
-                  <a class="btn secondary" href={`/notai/${notary.source_slug}`}>Scheda</a>
+                  <a class="btn secondary" href={`/notai/${(notary.source_slug || '').toLowerCase()}`}>Scheda</a>
                 </div>
               </article>
             );

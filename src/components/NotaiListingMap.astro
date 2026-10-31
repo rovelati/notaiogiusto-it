@@ -202,7 +202,7 @@ const panelClass = embedded
         (point.address ? `<div>${point.address}</div>` : '') +
         (detailMode
           ? ''
-          : `<div><a href="/notai/${point.slug}">Vedi scheda</a></div>`);
+          : `<div><a href="/notai/${(point.slug || '').toLowerCase()}">Vedi scheda</a></div>`);
       L.marker([point.lat, point.lng], { icon: bluePin(rank) }).bindPopup(popup).addTo(layer);
     });
     layer.addTo(map);

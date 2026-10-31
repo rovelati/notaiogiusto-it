@@ -211,12 +211,13 @@ const showOfficialSourceNote = officialCount > 0;
             : null;
         const reviews = Number(notary.review_count || 0);
         const rating = Number(notary.rating_avg || 0);
+        const notarySlug = (notary.source_slug || '').toLowerCase();
         return (
           <article class="card notary-result-row" id={`notary-${notary.id}`}>
             <div>
               <div class="result-title-row">
                 <span class="result-rank">{startRank + index + 1}</span>
-                <h3>{titleCase(notary.full_name)}</h3>
+                <h3><a href={`/notai/${notarySlug}`}>{titleCase(notary.full_name)}</a></h3>
                 {notary.is_official_notariato ? (
                   <span
                     class="official-mark"
@@ -244,7 +245,7 @@ const showOfficialSourceNote = officialCount > 0;
             <div class="actions">
               {notary.phone && <a class="btn navy" href={`tel:${notary.phone}`}>Chiama</a>}
               <a class="btn blue" rel="nofollow" href={`${preventivoBase}&notary=${notary.id}`}>Preventivo</a>
-              <a class="btn secondary" href={`/notai/${notary.source_slug}`}>Scheda</a>
+              <a class="btn secondary" href={`/notai/${notarySlug}`}>Scheda</a>
             </div>
           </article>
         );

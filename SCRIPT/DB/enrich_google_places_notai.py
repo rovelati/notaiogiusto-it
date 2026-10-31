@@ -236,6 +236,26 @@ def normalized_phone(value: Any) -> str:
     return digits
 
 
+def phone_candidates(value: Any) -> list[str]:
+    """Separa numeri multipli senza spezzare il formato italiano 02/1234567."""
+    text = re.sub(r"\s+", " ", str(value or "").replace("\u00a0", " ")).strip()
+    if not text:
+        return []
+    chunks = re.split(
+        r"\s*(?:[,;|]|\r?\n)\s*|(?<=\d)\s+(?=(?:\+?39\s*)?(?:0\d{1,4}\s*[/.-]|3\d{2}\b))",
+        text,
+    )
+    result: list[str] = []
+    seen: set[str] = set()
+    for chunk in chunks:
+        digits = normalized_phone(chunk)
+        if not 6 <= len(digits) <= 11 or digits in seen:
+            continue
+        seen.add(digits)
+        result.append(chunk.strip())
+    return result
+
+
 def international_phone(value: Any) -> str:
     digits = normalized_phone(value)
     return f"+39{digits}" if digits else ""
@@ -273,7 +293,8 @@ def match_candidate(notary: Notary, candidate: dict[str, Any]) -> tuple[int, lis
         or candidate.get("formatted_phone_number")
         or ""
     )
-    if notary.phone and candidate_phone and normalized_phone(notary.phone) == normalized_phone(candidate_phone):
+    expected_phones = {normalized_phone(phone) for phone in phone_candidates(notary.phone)}
+    if candidate_phone and normalized_phone(candidate_phone) in expected_phones:
         score += 55
         reasons.append("telefono esatto +55")
 
@@ -410,9 +431,12 @@ def find_match(
 
     bias = f"point:{notary.lat},{notary.lng}" if notary.lat is not None and notary.lng is not None else ""
     candidates: list[tuple[dict[str, Any], str]] = []
-    if notary.phone:
-        for item in client.find_phone(international_phone(notary.phone), bias):
-            candidates.append((item, "phone"))
+    for phone in phone_candidates(notary.phone):
+        try:
+            for item in client.find_phone(international_phone(phone), bias):
+                candidates.append((item, f"phone:{phone}"))
+        except RuntimeError as exc:
+            logger.warning("Ricerca telefono ignorata per %s (%s): %s", notary.slug, phone, exc)
     for query in candidate_queries(notary):
         for item in client.text_search(query, bias):
             candidates.append((item, f"text:{query}"))

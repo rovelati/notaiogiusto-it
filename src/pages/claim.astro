@@ -75,17 +75,17 @@ const steps = [
           {addressLine && <p>{addressLine}</p>}
           <p class="helper-text">
             Stai chiedendo la gestione di questa scheda.
-            <a href={`/notai/${notary.source_slug}`}>Vedi la pagina pubblica</a>
+            <a href={`/notai/${(notary.source_slug || '').toLowerCase()}`}>Vedi la pagina pubblica</a>
           </p>
           <div class="claim-hero__actions" style="margin-top:16px">
             <a class="btn blue" rel="nofollow" href={startHref}>Continua la richiesta</a>
-            <a class="btn secondary" href="/area-notai/accedi">Ho già l’accesso</a>
+            <a class="btn secondary" rel="nofollow" href="/area-notai/accedi">Ho già l’accesso</a>
           </div>
         </div>
       ) : (
         <div class="claim-hero__actions">
           <a class="btn blue" rel="nofollow" href={startHref}>Inizia richiesta di gestione</a>
-          <a class="btn secondary" href="/area-notai/accedi">Accedi area notai</a>
+          <a class="btn secondary" rel="nofollow" href="/area-notai/accedi">Accedi area notai</a>
           <a class="btn secondary" href="/notai">Trova prima la tua scheda</a>
         </div>
       )}

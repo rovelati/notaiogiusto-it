@@ -107,7 +107,7 @@ const mapPoints = notaries
   .map(({ notary, rank }) => ({
     id: notary.id,
     name: titleCase(notary.full_name),
-    slug: notary.source_slug,
+    slug: (notary.source_slug || '').toLowerCase(),
     address: [notary.address, notary.comune ? titleCase(notary.comune) : null].filter(Boolean).join(' · '),
     lat: notary.lat as number,
     lng: notary.lng as number,

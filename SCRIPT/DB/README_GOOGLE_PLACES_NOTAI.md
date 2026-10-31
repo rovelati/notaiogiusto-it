@@ -78,7 +78,23 @@ python3 enrich_google_places_notai.py \
 
 `run_google_places_daily.py` seleziona al massimo 8 notai non controllati negli
 ultimi 30 giorni, applica l'arricchimento con un limite di spesa e invia via
-SMTP Brevo un riepilogo HTML. Il report JSON resta in `SCRIPT/DB/state/`.
+SMTP Brevo un riepilogo HTML. Al termine invia a IndexNow le URL delle sole
+schede arricchite e include l'esito nell'email. Il report JSON resta in
+`SCRIPT/DB/state/`.
+
+Le modifiche alle schede aggiornano automaticamente `notaries.updated_at`,
+quindi il nuovo `lastmod` viene pubblicato in `/sitemap-notai.xml` per Google.
+Non viene usata la Google Indexing API, che non è ammessa per questo tipo di
+pagina, né il vecchio ping sitemap, ormai dismesso.
+
+Configurare la chiave pubblica IndexNow in `indexing.env`:
+
+```dotenv
+INDEXNOW_KEY=e55ec9dad316283b4b40a5b6bf894b55
+```
+
+Il relativo file di verifica è disponibile in
+`/e55ec9dad316283b4b40a5b6bf894b55.txt`.
 
 Esecuzione manuale:
 
@@ -97,12 +113,20 @@ python3 SCRIPT/DB/run_google_places_daily.py \
   --email-to romolo.velati@gmail.com
 ```
 
+Test della selezione URL senza inviare notifiche:
+
+```bash
+python3 SCRIPT/DB/notify_indexing.py \
+  --report-json SCRIPT/DB/state/google-places-daily-YYYYMMDD.json \
+  --dry-run
+```
+
 ### Configurazione Cron sul Server (`crontab -e`)
 
-Per l'esecuzione automatica ogni mattina alle 07:00:
+Configurazione attiva sul server ogni mattina alle 06:20:
 
 ```cron
-0 7 * * * cd /var/www/notaiogiusto-it && git pull origin main && python3 SCRIPT/DB/run_google_places_daily.py --limit 8 --max-cost-usd 1.00 --email-to romolo.velati@gmail.com >> /var/log/notaiogiusto_google_daily.log 2>&1
+20 6 * * * /usr/bin/flock -n /tmp/notaiogiusto-google-places.lock /bin/bash -lc 'cd /var/www/notaiogiusto-it && /usr/bin/python3 SCRIPT/DB/run_google_places_daily.py --limit 8 --max-cost-usd 1.00 --email-to romolo.velati@gmail.com >> /var/log/notaiogiusto/google-places-daily.log 2>&1'
 ```
 
 ## Foto e recensioni

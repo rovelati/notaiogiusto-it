@@ -4,7 +4,7 @@ export type SeoFaq = { question: string; answer: string };
 
 /** Meta + FAQ orientati a preventivo/costi per listing `/notai/{prov}/{città}`. */
 export function cityListingSeo(locationLabel: string, province: string, totalStudios: number) {
-  const title = `Preventivo notaio a ${locationLabel}: studi, costi e contatti | NotaioGiusto.it`;
+  const title = `Notai a ${locationLabel}: Studi, Costi e Preventivi | NotaioGiusto.it`;
   const description = `Confronta notai a ${locationLabel} (${province}), stima i costi e richiedi un preventivo a più studi. ${totalStudios} studi in zona, con mappa e schede.`;
   const h1 = `Notai e preventivo a ${locationLabel}`;
   const lead =

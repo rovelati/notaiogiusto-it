@@ -4,6 +4,8 @@ export type QuoteMailNotary = {
   id: string;
   fullName: string;
   email: string;
+  slug: string;
+  isVerified: boolean;
 };
 
 export type QuoteMailData = {
@@ -30,9 +32,12 @@ function env(name: string) {
   return String(import.meta.env[name] || process.env[name] || '').trim();
 }
 
+function quoteReference(quoteId: string) {
+  return `NG-${quoteId.replace(/[^a-z0-9]/gi, '').slice(0, 8).toUpperCase()}`;
+}
+
 function textDetails(data: QuoteMailData) {
   return [
-    `Riferimento: ${data.quoteId}`,
     `Prestazione: ${data.serviceName}`,
     data.comune ? `Località: ${data.comune}` : '',
     data.requesterName ? `Nome: ${data.requesterName}` : '',
@@ -41,12 +46,12 @@ function textDetails(data: QuoteMailData) {
     data.urgency ? `Tempistiche: ${data.urgency}` : '',
     ...data.details.map((item) => `${item.label}: ${item.value}`),
     data.message ? `Messaggio: ${data.message}` : '',
+    `Codice richiesta (utile per l'assistenza): ${quoteReference(data.quoteId)}`,
   ].filter(Boolean);
 }
 
 function detailsHtml(data: QuoteMailData) {
   const rows = [
-    ['Riferimento', data.quoteId],
     ['Prestazione', data.serviceName],
     ['Località', data.comune],
     ['Nome', data.requesterName],
@@ -55,6 +60,7 @@ function detailsHtml(data: QuoteMailData) {
     ['Tempistiche', data.urgency],
     ...data.details.map((item) => [item.label, item.value]),
     ['Messaggio', data.message],
+    ['Codice richiesta', `${quoteReference(data.quoteId)} (utile per l'assistenza)`],
   ].filter(([, value]) => value);
 
   return `
@@ -89,7 +95,8 @@ function emailShell(title: string, body: string) {
 
 export async function sendQuoteRequestEmails(data: QuoteMailData): Promise<QuoteMailDelivery[]> {
   const adminTo = getMailAdminRecipient();
-  const siteUrl = env('SITE_URL') || 'https://www.notaiogiusto.it';
+  const siteUrl = (env('SITE_URL') || 'https://www.notaiogiusto.it').replace(/\/$/, '');
+  const notaryFrom = env('QUOTE_MAIL_FROM') || 'NotaioGiusto.it Preventivi <preventivi@notaiogiusto.it>';
   const lines = textDetails(data);
   const table = detailsHtml(data);
   const deliveries: Array<Promise<QuoteMailDelivery>> = [];
@@ -137,23 +144,52 @@ export async function sendQuoteRequestEmails(data: QuoteMailData): Promise<Quote
   );
 
   for (const notary of data.notaries) {
+    const profileUrl = `${siteUrl}/notai/${encodeURIComponent(notary.slug)}`;
+    const claimPath = `/claim/start?notary=${encodeURIComponent(notary.id)}`;
+    const accountUrl = notary.isVerified
+      ? `${siteUrl}/area-notai/accedi`
+      : `${siteUrl}/area-notai/accedi?mode=register&next=${encodeURIComponent(claimPath)}`;
+    const accountLabel = notary.isVerified
+      ? 'Accedi alla tua area notaio'
+      : 'Registrati gratis e gestisci la scheda';
     deliveries.push(
       sendMail({
         to: notary.email,
+        from: notaryFrom,
         replyTo: data.requesterEmail,
         subject: `Richiesta di preventivo: ${data.serviceName}${data.comune ? ` · ${data.comune}` : ''}`,
         text: [
           `Gentile ${notary.fullName},`,
           '',
           'un utente di NotaioGiusto.it ha selezionato il suo studio per una richiesta di preventivo.',
-          'Può rispondere direttamente a questa email per contattare il richiedente.',
+          '',
+          'COME RISPONDERE',
+          'Risponda direttamente a questa email: la risposta sarà inviata al richiedente.',
           '',
           ...lines,
+          '',
+          'PERCHÉ REGISTRARSI SU NOTAIOGIUSTO.IT',
+          'Questa richiesta dimostra che gli utenti stanno già cercando e selezionando il suo studio.',
+          'Registrandosi gratuitamente può gestire la scheda, aggiornare contatti e prestazioni e ricevere richieste più pertinenti.',
+          `${accountLabel}: ${accountUrl}`,
+          `Vedi la scheda pubblica: ${profileUrl}`,
         ].join('\n'),
         html: emailShell('Richiesta di preventivo', `
           <p>Gentile <strong>${escapeHtml(notary.fullName)}</strong>,</p>
-          <p>un utente di NotaioGiusto.it ha selezionato il suo studio per una richiesta di preventivo. Può rispondere direttamente a questa email per contattare il richiedente.</p>
+          <p>un utente di NotaioGiusto.it ha selezionato il suo studio per una richiesta di preventivo.</p>
+          <div style="border:1px solid #bbf7d0;background:#f0fdf4;border-radius:10px;padding:16px;margin:18px 0">
+            <p style="margin:0 0 8px;font-size:18px"><strong>Come rispondere</strong></p>
+            <p style="margin:0">Clicchi su <strong>Rispondi</strong> nel suo programma di posta: la risposta sarà inviata direttamente al richiedente.</p>
+          </div>
           ${table}
+          <div style="border:1px solid #dbeafe;background:#eff6ff;border-radius:10px;padding:16px;margin:20px 0">
+            <p style="margin:0 0 8px;font-size:18px"><strong>Ricevere altre richieste pertinenti</strong></p>
+            <p style="margin:0 0 12px">Questa richiesta dimostra che gli utenti stanno già cercando e selezionando il suo studio. Registrandosi gratuitamente può gestire la scheda, aggiornare contatti e prestazioni e rendere più precise le richieste future.</p>
+            <p style="margin:0 0 10px">
+              <a href="${escapeHtml(accountUrl)}" style="display:inline-block;padding:11px 16px;border-radius:7px;background:#1d4a83;color:#fff;text-decoration:none;font-weight:700">${escapeHtml(accountLabel)}</a>
+            </p>
+            <p style="margin:0"><a href="${escapeHtml(profileUrl)}" style="color:#1d4a83">Vedi la scheda pubblica</a></p>
+          </div>
         `),
       }).then((result) => ({
         kind: 'notary' as const,

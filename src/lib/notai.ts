@@ -1,3 +1,4 @@
+import { schemaTelephone } from './format';
 import { query } from './db';
 import {
   SEARCH_RADIUS_STEPS,
@@ -1074,8 +1075,8 @@ export function buildNotariesItemListJsonLd({
       const item: Record<string, unknown> = {
         '@type': ['LegalService', 'LocalBusiness'],
         name: notary.full_name,
-        url: `${base}/notai/${notary.source_slug}`,
-        telephone: notary.phone || undefined,
+        url: `${base}/notai/${(notary.source_slug || '').toLowerCase()}`,
+        telephone: schemaTelephone(notary.phone),
         address: {
           '@type': 'PostalAddress',
           streetAddress: notary.address || undefined,
@@ -1144,7 +1145,7 @@ export async function getNotary(slug: string) {
     select id, source_slug, full_name, comune, district, address, cap, phone, email, pec, website,
            lat, lng, description, official_reference_url, is_official_notariato
     from notai.notaries
-    where source_slug = $1 and status = 'published'
+    where lower(source_slug) = lower($1) and status = 'published'
     limit 1
     `,
     [slug],
