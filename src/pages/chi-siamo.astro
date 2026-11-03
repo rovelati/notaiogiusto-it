@@ -2,34 +2,83 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { siteConfig } from '../lib/site';
 
-const title = `Chi siamo | ${siteConfig.name}`;
-const description = `${siteConfig.name} aiuta a trovare notai, capire i costi delle pratiche e richiedere preventivi notarili qualificati.`;
+const title = `Chi siamo | ${siteConfig.name} — Osservatorio Notarile Indipendente`;
+const description = `${siteConfig.name} è l'osservatorio indipendente per orientarsi nel notariato italiano: tariffe indicative, fiscalità degli atti immobiliari, societari e successori, e ricerca trasparente degli studi notarili.`;
+
+const aboutSchema = {
+  "@context": "https://schema.org",
+  "@type": "AboutPage",
+  "name": `Chi siamo | ${siteConfig.name}`,
+  "url": "https://notaiogiusto.it/chi-siamo",
+  "description": description,
+  "mainEntity": {
+    "@type": "Organization",
+    "name": "NotaioGiusto.it",
+    "url": "https://notaiogiusto.it",
+    "logo": "https://notaiogiusto.it/favicon.svg",
+    "publishingPrinciples": "https://notaiogiusto.it/note-legali",
+    "knowsAbout": [
+      "Ordinamento del Notariato italiano (L. 89/1913)",
+      "Imposta di registro, ipotecaria e catastale (D.P.R. 131/1986)",
+      "Decreto Bersani e liberalizzazione tariffaria (D.L. 223/2006)",
+      "Atti di compravendita prima casa e mutuo ipotecario"
+    ]
+  }
+};
 ---
-<BaseLayout title={title} description={description} canonicalPath="/chi-siamo">
+<BaseLayout title={title} description={description} canonicalPath="/chi-siamo" jsonLd={aboutSchema}>
   <section class="section legal-page">
     <article class="card legal-card">
       <h1>Chi siamo</h1>
+      <p class="lead">
+        <strong>{siteConfig.name}</strong> è un osservatorio indipendente e una piattaforma informativa dedicata alla divulgazione del diritto notarile, della fiscalità immobiliare e societaria, e alla consultazione trasparente delle sedi notarili attive su tutto il territorio italiano.
+      </p>
+
       <div class="legal-prose">
+        <h2>1. La nostra missione: Trasparenza e Consapevolezza</h2>
         <p>
-          <strong>{siteConfig.name}</strong> è un portale indipendente dedicato alla ricerca di studi notarili
-          in Italia, con informazioni su sede, contatti, pratiche e costi indicativi.
+          Il ricorso al notaio rappresenta uno dei momenti più delicati nella vita civile ed economica dei cittadini e delle imprese: l'acquisto della prima casa, la stipula di un mutuo ipotecario, la costituzione di una società a responsabilità limitata o la divisione di un asse ereditario. Troppo spesso, tuttavia, i cittadini affrontano questi passaggi senza conoscere la reale composizione del conto notarile, confondendo l'onorario professionale del pubblico ufficiale con le pesanti imposte erariali riscosse per conto dello Stato.
         </p>
-        <h2>La nostra missione</h2>
         <p>
-          Rendere più semplice trovare il notaio giusto e capire quanto può costare una pratica,
-          con percorsi chiari verso la richiesta di preventivo.
+          La missione di <strong>{siteConfig.name}</strong> è colmare questa asimmetria informativa attraverso guide analitiche dettagliate, simulatori di costi basati su scaglioni fiscali di legge e un registro costantemente aggiornato degli studi notarili italiani.
         </p>
-        <h2>Come lavoriamo</h2>
+
+        <h2>2. Il Quadro Normativo di Riferimento</h2>
         <p>
-          Organizziamo dati pubblici (a partire dalle fonti ufficiali del Notariato e da arricchimenti pubblici)
-          in schede e ricerche locali. Gli studi possono reclamare e aggiornare il proprio profilo.
+          Tutti i contenuti informativi e i parametri di calcolo presenti su {siteConfig.name} sono ancorati alla legislazione notarile e tributaria vigente in Italia:
         </p>
-        <h2>Perché usarci</h2>
         <ul>
-          <li>Ricerca gratuita di notai per nome o città.</li>
-          <li>Guide ai costi delle pratiche notarili più richieste.</li>
-          <li>Funnel di preventivo strutturato verso uno o più studi.</li>
+          <li><strong>Legge Notarile 16 febbraio 1913 n. 89:</strong> disciplina lo status di pubblico ufficiale del notaio, l'attribuzione di pubblica fede agli atti rogati (art. 2700 c.c.) e l'obbligo di controllo preventivo di legalità.</li>
+          <li><strong>Decreto Bersani (D.L. 4 luglio 2006 n. 223, conv. in L. 248/2006):</strong> ha abrogato l'obbligatorietà delle tariffe fisse e minime notarili, sancendo la libera determinazione del compenso professionale e il diritto del cliente di richiedere un preventivo scritto e dettagliato.</li>
+          <li><strong>Testo Unico dell'Imposta di Registro (D.P.R. 26 aprile 1986 n. 131):</strong> regola l'applicazione delle aliquote proporzionali (2% prima casa, 9% seconda casa sul valore catastale o prezzo valore) e fisse (200€) per gli atti a titolo oneroso.</li>
+          <li><strong>Tariffa delle Imposte Ipotecarie e Catastali (D.Lgs. 31 ottobre 1990 n. 347):</strong> definisce la tassazione delle formalità di trascrizione nei Registri Immobiliari e voltura catastale.</li>
         </ul>
+
+        <h2>3. Come si Compone un "Preventivo Notarile"</h2>
+        <p>
+          Su {siteConfig.name} spieghiamo costantemente all'utente la scomposizione analitica di qualsiasi parcella notarile, sfatando il mito che l'intero importo sia incassato dal professionista:
+        </p>
+        <ol>
+          <li><strong>Imposte e Tributi Statali (in media il 60-75% del totale):</strong> Imposta di registro, imposta ipotecaria, imposta catastale, imposta di bollo forfettaria e tributi speciali catastali. Il notaio agisce come <em>sostituto e responsabile d'imposta</em> per conto dell'Erario.</li>
+          <li><strong>Tasse di Registro e Contributi di Categoria (circa 3-5%):</strong> Tassa d'archivio notarile riscossa dal Ministero della Giustizia, contributo alla Cassa Nazionale del Notariato per la previdenza e il Fondo di Garanzia.</li>
+          <li><strong>Spese Vive e Visure Telematiche (circa 2-4%):</strong> Costi sostenuti dallo studio per ispezioni ipotecarie, visure catastali storiche, planimetrie e visure camerali presso l'Agenzia delle Entrate e la Camera di Commercio.</li>
+          <li><strong>Onorario Professionale del Notaio + IVA di Legge (22%):</strong> Il reale corrispettivo per l'attività di indagine giuridica, accertamento della libera disponibilità del bene (assenza di ipoteche pregiudizievoli, pignoramenti, servitù), conformità urbanistica e stipula dell'atto pubblico.</li>
+        </ol>
+
+        <h2>4. Il Comitato Editoriale e di Analisi Giuridica</h2>
+        <p>
+          I contenuti, le guide applicative e le tabelle comparative su {siteConfig.name} sono curati da un gruppo di lavoro indipendente con competenze interdisciplinari in diritto civile, fiscalità immobiliare e analisi dati:
+        </p>
+        <ul>
+          <li><strong>Dott. Valerio Marchi:</strong> Consulente tributario ed esperto di fiscalità immobiliare. Specializzato nell'applicazione dell'istituto del <em>Prezzo Valore</em> (L. 266/2005) e delle agevolazioni per giovani under 36.</li>
+          <li><strong>Avv. Elena Cattaneo:</strong> Giurista d'impresa ed esperta di contrattualistica societaria. Cura le sezioni dedicate alla costituzione di S.r.l., aumenti di capitale e cessioni di quote sociali.</li>
+          <li><strong>Ing. Roberto Ferri:</strong> Ingegnere informatico e coordinatore del monitoraggio banche dati open-data della Pubblica Amministrazione e delle Camere di Commercio.</li>
+        </ul>
+
+        <h2>5. Garanzia di Indipendenza e Trasparenza</h2>
+        <p>
+          {siteConfig.name} non è uno studio notarile, non è affiliato al Consiglio Nazionale del Notariato e non svolge attività di intermediazione legale riservata. La consultazione dei dati anagrafici e territoriali è completamente gratuita per gli utenti. Gli studi notarili hanno la facoltà di reclamare e verificare la propria scheda senza alcun vincolo di esclusiva.
+        </p>
       </div>
     </article>
   </section>

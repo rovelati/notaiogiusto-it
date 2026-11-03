@@ -105,13 +105,25 @@ const navItems = [
       });
     </script>
 
+    <!-- UniConsent CMP Config (Localizzato Italia / NotaioGiusto.it) -->
+    <script is:inline>
+      window.__unic_config_v2 = {
+        company: "NotaioGiusto.it",
+        site_name: "NotaioGiusto.it",
+        brand: "NotaioGiusto.it",
+        country: "IT",
+        publisherCountryCode: "IT",
+        lang: "it"
+      };
+    </script>
+
     <!-- UniConsent CMP (Consent Management Platform IAB TCF v2.2) -->
+    <script async src="https://cmp.uniconsent.com/v2/stub.min.js"></script>
     <script
       is:inline
       async
       fetchpriority="low"
-      src="https://cmp.uniconsent.com/v2/cmp.js"
-      data-license="a635480a30"
+      src="https://cmp.uniconsent.com/v2/a635480a30/cmp.js"
     ></script>
 
     <!-- Google AdSense (Auto Ads & Ad units) -->

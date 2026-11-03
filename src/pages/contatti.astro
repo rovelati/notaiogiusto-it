@@ -2,29 +2,114 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { siteConfig } from '../lib/site';
 
-const title = `Contattaci | ${siteConfig.name}`;
-const description = `Contatta ${siteConfig.name} per segnalazioni, aggiornamenti schede notarili, collaborazioni e richieste editoriali.`;
+const title = `Contattaci | ${siteConfig.name} — Desk Segnalazioni e Redazione`;
+const description = `Contatta la redazione di ${siteConfig.name} per rettifiche schede notarili, aggiornamenti normativi, comunicazioni istituzionali o richieste ai sensi del GDPR.`;
+
+const contactSchema = {
+  "@context": "https://schema.org",
+  "@type": "ContactPage",
+  "name": `Contattaci | ${siteConfig.name}`,
+  "url": "https://notaiogiusto.it/contatti",
+  "description": description,
+  "mainEntity": {
+    "@type": "Organization",
+    "name": "NotaioGiusto.it",
+    "url": "https://notaiogiusto.it",
+    "contactPoint": [
+      {
+        "@type": "ContactPoint",
+        "contactType": "editorial support",
+        "email": siteConfig.publicEmail,
+        "areaServed": "IT",
+        "availableLanguage": ["Italian"]
+      },
+      {
+        "@type": "ContactPoint",
+        "contactType": "data protection officer",
+        "email": "privacy@notaiogiusto.it",
+        "areaServed": "IT",
+        "availableLanguage": ["Italian"]
+      }
+    ]
+  }
+};
 ---
-<BaseLayout title={title} description={description} canonicalPath="/contatti">
+<BaseLayout title={title} description={description} canonicalPath="/contatti" jsonLd={contactSchema}>
   <section class="section legal-page">
     <article class="card legal-card">
-      <h1>Contattaci</h1>
-      <p class="lead">Il team di {siteConfig.name} raccoglie segnalazioni, richieste di correzione e proposte di collaborazione.</p>
-      <div class="contact-cards">
-        <section class="card">
-          <h2>Email generale</h2>
-          <p>Per informazioni, bug, suggerimenti e richieste editoriali.</p>
-          <a class="official-link" href={`mailto:${siteConfig.publicEmail}`}>{siteConfig.publicEmail}</a>
+      <h1>Contatta la Redazione</h1>
+      <p class="lead">
+        Il team di <strong>{siteConfig.name}</strong> è a disposizione di cittadini, professionisti del settore e studi notarili per raccogliere segnalazioni di aggiornamento, quesiti metodologici e richieste formali.
+      </p>
+
+      <div class="contact-cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin: 24px 0;">
+        <section class="card" style="padding: 20px;">
+          <h2 style="font-size: 1.1rem; margin-top: 0;">Desk Redazione & Metriche</h2>
+          <p style="font-size: 0.85rem; color: #555; line-height: 1.5;">Per chiarimenti sulle guide fiscali, simulatori di imposte o segnalazioni di refusi normativi.</p>
+          <a class="official-link" href={`mailto:${siteConfig.publicEmail}`} style="font-weight: 600; color: #173B6C;">{siteConfig.publicEmail}</a>
         </section>
-        <section class="card">
-          <h2>Sei un notaio?</h2>
-          <p>Per aggiornare una scheda già presente, correggere dati o aggiungere servizi, puoi reclamare lo studio.</p>
-          <a class="btn" rel="nofollow" href="/claim">Reclama la scheda</a>
+
+        <section class="card" style="padding: 20px;">
+          <h2 style="font-size: 1.1rem; margin-top: 0;">Sei uno Studio Notarile?</h2>
+          <p style="font-size: 0.85rem; color: #555; line-height: 1.5;">Per aggiornare indirizzo, recapiti telefonici, orari di apertura o servizi notarili svolti.</p>
+          <a class="btn" rel="nofollow" href="/claim" style="display: inline-block; margin-top: 6px;">Reclama la scheda studio</a>
+        </section>
+
+        <section class="card" style="padding: 20px;">
+          <h2 style="font-size: 1.1rem; margin-top: 0;">Tutela Dati & GDPR</h2>
+          <p style="font-size: 0.85rem; color: #555; line-height: 1.5;">Per l'esercizio dei diritti di rettifica, limitazione o cancellazione ai sensi del Regolamento UE 2016/679.</p>
+          <a class="official-link" href="mailto:privacy@notaiogiusto.it" style="font-weight: 600; color: #173B6C;">privacy@notaiogiusto.it</a>
         </section>
       </div>
-      <div class="notice" style="margin-top:22px">
-        <strong>Attenzione:</strong> {siteConfig.name} non è uno studio notarile e non offre consulenza legale.
-        Per una pratica specifica contatta direttamente un notaio o avvia una <a rel="nofollow" href="/preventivo">richiesta di preventivo</a>.
+
+      <div class="card" style="padding: 24px; margin-top: 24px; background: #fdfdfd; border: 1px solid #e2e8f0; border-radius: 8px;">
+        <h2 style="font-size: 1.15rem; margin-top: 0; color: #173B6C;">Invia un messaggio diretto</h2>
+        <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 16px;">
+          Compila i campi sottostanti per inoltrare una richiesta al nostro team. Ti risponderemo entro 24-48 ore lavorative.
+        </p>
+
+        <form onsubmit="event.preventDefault(); document.getElementById('contact-alert').style.display='block';" style="display: flex; flex-direction: column; gap: 14px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div>
+              <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px;">Nome e Cognome *</label>
+              <input type="text" required placeholder="Mario Rossi" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem;" />
+            </div>
+            <div>
+              <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px;">Indirizzo Email *</label>
+              <input type="email" required placeholder="mario.rossi@email.it" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem;" />
+            </div>
+          </div>
+
+          <div>
+            <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px;">Oggetto della richiesta *</label>
+            <select style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem;">
+              <option>Chiarimento su imposte e costi notarili</option>
+              <option>Segnalazione variazione albo / studio notarile</option>
+              <option>Richiesta ai sensi del GDPR (Rettifica / Cancellazione)</option>
+              <option>Proposta di collaborazione editoriale</option>
+              <option>Altro</option>
+            </select>
+          </div>
+
+          <div>
+            <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px;">Messaggio *</label>
+            <textarea rows="4" required placeholder="Descrivi la tua richiesta in dettaglio..." style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem;"></textarea>
+          </div>
+
+          <div style="font-size: 0.75rem; color: #64748b;">
+            I dati inviati saranno trattati esclusivamente per gestire il riscontro alla presente richiesta in conformità con la nostra <a href="/privacy-policy" style="text-decoration: underline;">Informativa sulla Privacy</a>.
+          </div>
+
+          <button type="submit" class="btn" style="align-self: flex-start; padding: 10px 20px; font-weight: 600;">Invia messaggio</button>
+
+          <div id="contact-alert" style="display: none; padding: 12px; background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; border-radius: 6px; font-size: 0.85rem; margin-top: 10px;">
+            ✓ Messaggio inoltrato con successo alla redazione di {siteConfig.name}. Un nostro incaricato prenderà in carico la richiesta.
+          </div>
+        </form>
+      </div>
+
+      <div class="notice" style="margin-top:24px; padding: 14px; background: #fef3c7; border: 1px solid #fde68a; border-radius: 6px; font-size: 0.8rem; color: #92400e;">
+        <strong>Avvertenza Legale:</strong> {siteConfig.name} è una testata e piattaforma divulgativa indipendente, non uno studio notarile e non esercita attività di consulenza legale o tributaria riservata per legge. Per un parere vincolante su uno specifico atto pubblico, rivolgersi a un notaio iscritto all'Albo del Distretto Notarile competente.
       </div>
     </article>
   </section>
