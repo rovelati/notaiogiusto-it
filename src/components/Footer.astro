@@ -1,5 +1,6 @@
 ---
 import { siteConfig } from '../lib/site';
+import { CAPOLUOGHI, canonicalNotaiCityPath, SEO_SERVICE_LINKS } from '../lib/locations';
 
 const year = new Date().getFullYear();
 const usefulLinks = [
@@ -75,6 +76,33 @@ const legalLinks = [
         I costi sono indicativi: imposte, bolli e onorari variano in base alla pratica e vanno confermati dallo studio.
       </p>
     </section>
+  </div>
+
+  <div class="site-footer__seo">
+    <div class="site-footer__seo-col">
+      <h2>Notai nelle principali città</h2>
+      <ul class="site-footer__seo-cities">
+        {CAPOLUOGHI.slice(0, 24).map((city) => (
+          <li>
+            <a href={canonicalNotaiCityPath(city.name, city.province)}>
+              Notai a {city.name}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+    <div class="site-footer__seo-col">
+      <h2>Costi e Pratiche Notarili</h2>
+      <ul class="site-footer__seo-services">
+        {SEO_SERVICE_LINKS.slice(0, 8).map((srv) => (
+          <li>
+            <a href={`/quanto-costa/${srv.slug}`}>
+              Costo {srv.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
   </div>
 
   <div class="site-footer__bottom">

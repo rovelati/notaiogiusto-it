@@ -3,6 +3,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import NotaiSearchBar from '../components/NotaiSearchBar.astro';
 import { euro } from '../lib/format';
 import { getStats, getTopServices } from '../lib/notai';
+import { CAPOLUOGHI, canonicalNotaiCityPath } from '../lib/locations';
 
 const [services, stats] = await Promise.all([getTopServices(9), getStats()]);
 
@@ -83,6 +84,25 @@ const heroActions = [
           </div>
         </a>
       ))}
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-heading section-heading--center">
+      <span class="eyebrow">Cerca per città</span>
+      <h2>Notai nelle principali città italiane</h2>
+      <p>Trova gli studi notarili, consulta i recapiti ufficiali e richiedi preventivi dettagliati nel tuo comune.</p>
+    </div>
+    <div class="city-chip-grid">
+      {CAPOLUOGHI.map((city) => (
+        <a class="city-chip" href={canonicalNotaiCityPath(city.name, city.province)}>
+          {city.name}
+          <span>{city.province}</span>
+        </a>
+      ))}
+    </div>
+    <div style="text-align: center; margin-top: 24px;">
+      <a class="btn secondary" href="/notai">Tutte le province e i comuni d’Italia &rarr;</a>
     </div>
   </section>
 

@@ -3,7 +3,14 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import LegalDisclaimer from '../../components/LegalDisclaimer.astro';
 import AdSlot from '../../components/AdSlot.astro';
 import { euro } from '../../lib/format';
-import { CAPOLUOGHI, getMacroByName, macroCategory, macroCategoryPath, toLocationSlug } from '../../lib/locations';
+import {
+  CAPOLUOGHI,
+  canonicalNotaiCityPath,
+  getMacroByName,
+  macroCategory,
+  macroCategoryPath,
+  toLocationSlug,
+} from '../../lib/locations';
 import { getRelatedServices, getService, getTopServices } from '../../lib/notai';
 import { FIRST_HOME_SEO } from '../../lib/seo-content';
 import { absoluteUrl } from '../../lib/site';
@@ -325,9 +332,16 @@ const articleJsonLd = hasEditorial
             <section class="service-article__cities">
               <h2>Trova notai per {serviceName}</h2>
               <div class="city-link-row">
-                {featuredCities.slice(0, 6).map((city) => (
+                {featuredCities.slice(0, 8).map((city) => (
                   <a href={`/quanto-costa/${toLocationSlug(city.name, city.province)}/${service.slug}/notai`}>
                     {serviceName} a {city.name}
+                  </a>
+                ))}
+              </div>
+              <div class="city-link-row" style="margin-top: 10px;">
+                {featuredCities.slice(0, 8).map((city) => (
+                  <a href={canonicalNotaiCityPath(city.name, city.province)}>
+                    Notai a {city.name}
                   </a>
                 ))}
               </div>
