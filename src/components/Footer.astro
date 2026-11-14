@@ -23,23 +23,18 @@ const legalLinks = [
 
 <footer class="site-footer">
   <div class="site-footer__grid">
-    <section>
-      <h2>Contatti</h2>
+    <section class="site-footer__col-brand">
+      <div class="site-footer__brand">
+        <img src="/brand/mark.svg" width="40" height="40" alt="" decoding="async" />
+        <strong>{siteConfig.name}</strong>
+      </div>
       <p>
-        {siteConfig.name} raccoglie e organizza dati pubblici sugli studi notarili italiani per facilitare
-        la ricerca di notai, costi indicativi e richieste di preventivo. I titolari possono chiedere aggiornamenti
-        o correzioni scrivendo alla redazione.
+        Portale indipendente per trovare notai, capire i costi delle pratiche e richiedere preventivi
+        qualificati. Dati pubblici ufficiali, schede aggiornabili dagli studi notarili.
       </p>
-      <p class="site-footer__strong">Redazione digitale · Italia</p>
-      <a class="site-footer__accent" href={`mailto:${siteConfig.publicEmail}`}>{siteConfig.publicEmail}</a>
-      <a
-        class="site-footer__accent site-footer__accent--block"
-        href={`mailto:${siteConfig.publicEmail}?subject=${encodeURIComponent('Richiesta aggiornamento scheda notaio')}`}
-      >
-        Richiedi aggiornamento scheda notaio
-      </a>
+      <a class="site-footer__claim" rel="nofollow" href="/claim">Aggiorna gratis la scheda</a>
       <p class="site-footer__note">
-        Al momento non è disponibile assistenza telefonica: contattaci via email per collaborazioni e segnalazioni.
+        I costi sono indicativi: imposte e onorari variano in base alla pratica e vanno confermati dallo studio.
       </p>
     </section>
 
@@ -53,55 +48,44 @@ const legalLinks = [
     </section>
 
     <section>
-      <h2>Link legali</h2>
+      <h2>Guide e Costi</h2>
       <ul>
+        {SEO_SERVICE_LINKS.slice(0, 7).map((srv) => (
+          <li><a href={`/quanto-costa/${srv.slug}`}>Costo {srv.label}</a></li>
+        ))}
+        <li><a href="/quanto-costa" style="color: #e2bf6d; font-weight: 700;">Tutte le pratiche &rarr;</a></li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Contatti e Note</h2>
+      <p class="site-footer__strong">Redazione digitale · Italia</p>
+      <a class="site-footer__accent" href={`mailto:${siteConfig.publicEmail}`}>{siteConfig.publicEmail}</a>
+      <a
+        class="site-footer__accent site-footer__accent--block"
+        href={`mailto:${siteConfig.publicEmail}?subject=${encodeURIComponent('Richiesta aggiornamento scheda notaio')}`}
+      >
+        Richiedi aggiornamento scheda
+      </a>
+      <ul style="margin-top: 14px;">
         {legalLinks.map((link) => (
           <li><a href={link.href}>{link.label}</a></li>
         ))}
         <li><a href="javascript:void(0)" onclick="window.__uniconsent && window.__uniconsent.openConsent ? window.__uniconsent.openConsent() : null">Preferenze cookie</a></li>
       </ul>
     </section>
-
-    <section>
-      <div class="site-footer__brand">
-        <img src="/brand/mark.svg" width="40" height="40" alt="" decoding="async" />
-        <strong>{siteConfig.name}</strong>
-      </div>
-      <p>
-        Portale indipendente per trovare notai, capire i costi delle pratiche e richiedere preventivi
-        qualificati. Le schede sono aggiornabili dagli studi notarili.
-      </p>
-      <a class="site-footer__claim" rel="nofollow" href="/claim">Aggiorna gratis la scheda</a>
-      <p class="site-footer__note">
-        I costi sono indicativi: imposte, bolli e onorari variano in base alla pratica e vanno confermati dallo studio.
-      </p>
-    </section>
   </div>
 
-  <div class="site-footer__seo">
-    <div class="site-footer__seo-col">
-      <h2>Notai nelle principali città</h2>
-      <ul class="site-footer__seo-cities">
-        {CAPOLUOGHI.slice(0, 24).map((city) => (
-          <li>
-            <a href={canonicalNotaiCityPath(city.name, city.province)}>
-              Notai a {city.name}
-            </a>
-          </li>
+  <div class="site-footer__seo-wrapper">
+    <div class="site-footer__seo-inner">
+      <h2>Notai nelle principali città italiane</h2>
+      <div class="site-footer__cities-grid">
+        {CAPOLUOGHI.slice(0, 36).map((city) => (
+          <a class="site-footer__city-link" href={canonicalNotaiCityPath(city.name, city.province)}>
+            Notai a {city.name} <span>({city.province})</span>
+          </a>
         ))}
-      </ul>
-    </div>
-    <div class="site-footer__seo-col">
-      <h2>Costi e Pratiche Notarili</h2>
-      <ul class="site-footer__seo-services">
-        {SEO_SERVICE_LINKS.slice(0, 8).map((srv) => (
-          <li>
-            <a href={`/quanto-costa/${srv.slug}`}>
-              Costo {srv.label}
-            </a>
-          </li>
-        ))}
-      </ul>
+      </div>
     </div>
   </div>
 
@@ -117,3 +101,192 @@ const legalLinks = [
     </div>
   </div>
 </footer>
+
+<style>
+  .site-footer {
+    margin-top: auto;
+    color: #d5deeb;
+    background: #0b1628;
+    font-family: "Source Sans 3", "Segoe UI", sans-serif;
+  }
+  .site-footer__grid {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1fr 1.2fr;
+    gap: 32px;
+    width: min(1200px, 100%);
+    margin: 0 auto;
+    padding: clamp(36px, 5vw, 56px) clamp(18px, 5vw, 72px) 28px;
+  }
+  .site-footer h2 {
+    margin: 0 0 14px;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 900;
+    letter-spacing: .02em;
+  }
+  .site-footer p {
+    margin: 0;
+    color: #c5d0e0;
+    font-size: 14px;
+    line-height: 1.65;
+  }
+  .site-footer__brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0 0 12px;
+  }
+  .site-footer__brand img {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+  }
+  .site-footer__brand strong {
+    display: block;
+    font-size: 18px;
+    color: #fff;
+    font-family: "Source Sans 3", "Segoe UI", sans-serif;
+  }
+  .site-footer__strong {
+    margin-top: 14px !important;
+    color: #fff !important;
+    font-weight: 850;
+  }
+  .site-footer__accent {
+    display: inline-flex;
+    margin-top: 8px;
+    color: #e2bf6d;
+    font-size: 14px;
+    font-weight: 850;
+    text-decoration: none;
+  }
+  .site-footer__accent:hover { color: #f3d58f; text-decoration: underline; }
+  .site-footer__accent--block { display: block; text-decoration: underline; }
+  .site-footer__note {
+    margin-top: 12px !important;
+    color: #93a4bb !important;
+    font-size: 12px !important;
+    line-height: 1.5 !important;
+  }
+  .site-footer__claim {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    margin-top: 14px;
+    padding: 8px 14px;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    color: #e8eef7;
+    font-size: 13px;
+    font-weight: 850;
+    text-decoration: none;
+  }
+  .site-footer__claim:hover {
+    border-color: #e2bf6d;
+    color: #fff;
+  }
+  .site-footer ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 8px;
+  }
+  .site-footer li a {
+    color: #c5d0e0;
+    font-size: 14px;
+    text-decoration: none;
+    transition: color .15s ease;
+  }
+  .site-footer li a:hover {
+    color: #fff;
+    text-decoration: underline;
+  }
+  .site-footer__seo-wrapper {
+    border-top: 1px solid #1e2b40;
+    background: #08101e;
+    padding: 28px clamp(18px, 5vw, 72px);
+  }
+  .site-footer__seo-inner {
+    width: min(1200px, 100%);
+    margin: 0 auto;
+  }
+  .site-footer__seo-inner h2 {
+    margin: 0 0 16px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 850;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+  .site-footer__cities-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 8px 14px;
+  }
+  .site-footer__city-link {
+    color: #9fb3cc;
+    font-size: 13px;
+    text-decoration: none;
+    line-height: 1.4;
+    transition: color .15s ease;
+  }
+  .site-footer__city-link span {
+    color: #64748b;
+    font-size: 11px;
+  }
+  .site-footer__city-link:hover {
+    color: #e2bf6d;
+    text-decoration: underline;
+  }
+  .site-footer__city-link:hover span {
+    color: #e2bf6d;
+  }
+  .site-footer__bottom {
+    border-top: 1px solid #1e2b40;
+    padding: 18px clamp(18px, 5vw, 72px);
+  }
+  .site-footer__bottom-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    width: min(1200px, 100%);
+    margin: 0 auto;
+    color: #93a4bb;
+    font-size: 13px;
+  }
+  .site-footer__bottom-links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 14px;
+  }
+  .site-footer__bottom-links a {
+    color: #93a4bb;
+    text-decoration: none;
+  }
+  .site-footer__bottom-links a:hover { color: #fff; }
+
+  @media (max-width: 900px) {
+    .site-footer__grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  @media (max-width: 600px) {
+    .site-footer__grid {
+      grid-template-columns: 1fr;
+    }
+    .site-footer__cities-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .site-footer__bottom-inner {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .site-footer__bottom-links {
+      justify-content: flex-start;
+    }
+  }
+</style>

@@ -182,7 +182,15 @@ const scopeNote =
         exactCityCount,
         radiusKm: activeRadiusKm,
       }));
-const noindex = hasSearch || shouldNoindexSearch(Astro.url) || Boolean(hasNear) || currentPage > 1;
+const isPaginated = currentPage > 1;
+const robots = hasNear || radiusKm != null || (hasSearch && !comune && !servizio)
+  ? 'noindex,nofollow,noarchive'
+  : isPaginated
+    ? 'noindex,follow'
+    : hasSearch
+      ? 'noindex,nofollow,noarchive'
+      : undefined;
+const noindex = !robots && (hasSearch || shouldNoindexSearch(Astro.url) || Boolean(hasNear));
 const preventivoBase = `/preventivo?step=${service ? '2' : '1'}${service ? `&servizio=${encodeURIComponent(service.slug)}` : ''}${comune ? `&comune=${encodeURIComponent(comune)}` : ''}`;
 const mapPoints = notaries
   .map((notary, index) => ({ notary, rank: (currentPage - 1) * LISTING_PAGE_SIZE + index + 1 }))
@@ -261,7 +269,7 @@ const seoBundle =
       })
     : { cityLinks: [], serviceLinks: [] };
 ---
-<BaseLayout title={title} noindex={noindex} canonicalPath="/notai">
+<BaseLayout title={title} noindex={noindex} robots={robots} canonicalPath="/notai">
   <section class={`home-hero search-hero${hasSearch && !showSearchForm ? ' search-hero--results' : ''}`}>
     <div class="home-hero__glow" aria-hidden="true"></div>
     <div class="home-hero__inner home-hero__inner--wide">

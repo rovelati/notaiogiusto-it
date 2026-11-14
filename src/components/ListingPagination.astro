@@ -4,7 +4,7 @@ const {
   totalPages = 1,
   total = 0,
   basePath = '',
-  pageSize = 10,
+  pageSize = 15,
 } = Astro.props as {
   page?: number;
   totalPages?: number;
@@ -18,7 +18,7 @@ function pageHref(target: number) {
   if (target <= 1) url.searchParams.delete('page');
   else url.searchParams.set('page', String(target));
   const qs = url.searchParams.toString();
-  return `${url.pathname}${qs ? `?${qs}` : ''}`;
+  return `${url.pathname}${qs ? `?${qs}` : ''}#risultati`;
 }
 
 const show = totalPages > 1 && total > pageSize;
@@ -38,7 +38,7 @@ const pages = Array.from({ length: totalPages }, (_, i) => i + 1).filter((p) => 
       {page > 1 && (
         <a
           href={pageHref(page - 1)}
-          rel={page - 1 > 1 ? 'nofollow prev' : 'prev'}
+          rel="prev"
         >
           Precedente
         </a>
@@ -52,13 +52,13 @@ const pages = Array.from({ length: totalPages }, (_, i) => i + 1).filter((p) => 
             {p === page ? (
               <span class="is-current" aria-current="page">{p}</span>
             ) : (
-              <a href={pageHref(p)} rel={p > 1 ? 'nofollow' : undefined}>{p}</a>
+              <a href={pageHref(p)}>{p}</a>
             )}
           </>
         );
       })}
       {page < totalPages && (
-        <a href={pageHref(page + 1)} rel="nofollow next">Successiva</a>
+        <a href={pageHref(page + 1)} rel="next">Successiva</a>
       )}
     </div>
   </nav>

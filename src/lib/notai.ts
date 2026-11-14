@@ -731,7 +731,7 @@ export type RankedNotary = Notary & {
   relevance_score?: number;
 };
 
-export const LISTING_PAGE_SIZE = 10;
+export const LISTING_PAGE_SIZE = 15;
 export const LISTING_CANDIDATE_CAP = 400;
 
 type NearbyRow = RankedNotary;

@@ -121,8 +121,11 @@ const heroCountNote =
     ? `${locationResult.total} studi entro ${activeRadiusKm} km da ${locationLabel}`
     : `${locationResult.total} studi a ${locationLabel}`;
 
+const isPaginated = locationResult.page > 1;
 const citySeo = cityListingSeo(locationLabel, province, locationResult.total);
-const title = citySeo.title;
+const title = isPaginated
+  ? `Notai a ${locationLabel} (Pagina ${locationResult.page}): Studi, Costi e Preventivi | NotaioGiusto.it`
+  : citySeo.title;
 const description = citySeo.description;
 const seoBundle = listingSeoLinks({
   comune,
@@ -139,7 +142,13 @@ const paginationBase = (() => {
   return `${url.pathname}${url.search}`;
 })();
 
-const noindex = locationResult.page > 1 || shouldNoindexListingUrl(Astro.url) || radiusKm != null;
+// Best practice SEO listing: le pagine successive (?page=2, 3...) sono noindex,follow con canonical alla master
+const robots = radiusKm != null
+  ? 'noindex,nofollow,noarchive'
+  : isPaginated
+    ? 'noindex,follow'
+    : undefined;
+const noindex = !robots && shouldNoindexListingUrl(Astro.url);
 const provinceHubHref = canonicalNotaiProvincePath(province);
 const listJsonLd =
   locationResult.page === 1
@@ -158,6 +167,7 @@ const jsonLd = [listJsonLd, faqJsonLd].filter(Boolean);
   title={title}
   description={description}
   canonicalPath={canonical}
+  robots={robots}
   noindex={noindex}
   jsonLd={jsonLd.length ? jsonLd : null}
 >

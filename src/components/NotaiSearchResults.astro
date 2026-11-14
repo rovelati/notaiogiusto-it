@@ -42,7 +42,7 @@ const {
   page = 1,
   totalPages = 1,
   total = 0,
-  pageSize = 10,
+  pageSize = 15,
   paginationBasePath = '',
   nearMeActive = false,
   serviceIntent = null,
@@ -132,7 +132,7 @@ const stickyLabel = serviceName
 const officialCount = notaries.filter((n) => n.is_official_notariato).length;
 const showOfficialSourceNote = officialCount > 0;
 ---
-<section class="section section--listing">
+<section class="section section--listing" id="risultati">
   {serviceIntent && (
     <aside class="service-intent" aria-label="Passo successivo">
       <div class="service-intent__copy">
