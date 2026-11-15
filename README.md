@@ -3,6 +3,7 @@
 <div align="center">
 
 [![Sito Ufficiale](https://img.shields.io/badge/Sito_Web-NotaioGiusto.it-blue?style=for-the-badge&logo=googlechrome&logoColor=white)](https://www.notaiogiusto.it/)
+[![Cerca Notai](https://img.shields.io/badge/Directory-Cerca_Notai-navy?style=for-the-badge&logo=compass&logoColor=white)](https://www.notaiogiusto.it/notai)
 [![Calcolo Costi](https://img.shields.io/badge/Costi_Notarili-Trasparenza_Tariffe-emerald?style=for-the-badge&logo=cashapp&logoColor=white)](https://www.notaiogiusto.it/quanto-costa)
 [![Prima Casa](https://img.shields.io/badge/Rogito-Acquisto_Prima_Casa-indigo?style=for-the-badge&logo=homeassistant&logoColor=white)](https://www.notaiogiusto.it/quanto-costa/acquisto-prima-casa)
 [![Società & SRL](https://img.shields.io/badge/Societario-Costituzione_SRL-purple?style=for-the-badge&logo=databricks&logoColor=white)](https://www.notaiogiusto.it/quanto-costa/costituzione-srl)
@@ -10,7 +11,7 @@
 
 <br/>
 
-**[NotaioGiusto.it](https://www.notaiogiusto.it/)** è la piattaforma italiana indipendente per confrontare e richiedere preventivi notarili trasparenti, calcolare le imposte di registro, catastali e ipotecarie per l'acquisto di immobili, e trovare gli studi notarili accreditati in tutte le province d'Italia.
+**[NotaioGiusto.it](https://www.notaiogiusto.it/)** è la piattaforma indipendente italiana per confrontare e richiedere preventivi notarili trasparenti, calcolare le imposte di registro, catastali e ipotecarie per l'acquisto di immobili, e trovare gli studi notarili censiti in tutte le province d'Italia.
 
 </div>
 
@@ -18,11 +19,11 @@
 
 ## 🌟 Funzionalità Principali
 
-- 📊 **Calcolo Imposte e Spese Notarili Trasparenti**: Benchmark accurati sulle imposte statali (registro, ipotecaria, catastale) e sugli onorari notarili per compravendite, mutui e successioni.
-- 🏛️ **Directory Notai Certificata**: Oltre 5.000 studi notarili censiti e geolocalizzati in tutte le province italiane con orari, recapiti e specializzazioni.
-- ⚡ **Architettura Ultra-Veloce (Astro SSG + Cloudflare Edge)**: Caricamento istantaneo con punteggi Core Web Vitals al 100%.
-- 🔒 **Privacy & Trasparenza**: Invio richieste di preventivo diretto senza intermediari né commissioni nascoste.
-- 📑 **Dati Strutturati E-E-A-T**: Marcatori semantici `schema.org` completi (`LegalService`, `FAQPage`, `BreadcrumbList`, `FinancialProduct`).
+- 📊 **Calcolo Imposte e Spese Notarili Trasparenti**: Benchmark accurati sulle imposte statali (registro al 2% o 9%, ipotecaria, catastale) e sugli onorari notarili per compravendite, mutui, donazioni e successioni.
+- 🏛️ **Directory Notai Certificata**: Oltre 4.800 studi notarili censiti e geolocalizzati in tutte le province italiane con orari, recapiti ufficiali e distretti di appartenenza.
+- ⚡ **Architettura Ultra-Veloce (Astro SSR + Node.js)**: Caricamento istantaneo con punteggi Core Web Vitals al 100% e navigazione fluida.
+- 🔒 **Privacy & Trasparenza**: Invio richieste di preventivo diretto a più studi selezionati senza intermediari né commissioni nascoste.
+- 📑 **Dati Strutturati E-E-A-T**: Marcatori semantici `schema.org` completi (`LegalService`, `FAQPage`, `BreadcrumbList`, `FinancialProduct`, `WebSite`).
 
 ---
 
@@ -34,49 +35,68 @@ Consulta le guide approfondite e i simulatori di spesa notarile:
 | :--- | :--- | :---: |
 | 🏠 **Acquisto Prima Casa** | Imposta di registro al 2%, imposte fisse, onorario medio rogito | [Guida Costo Notaio Prima Casa](https://www.notaiogiusto.it/quanto-costa/acquisto-prima-casa) |
 | 🏢 **Compravendita Immobiliare** | Seconda casa, pertinenze, terreni e fabbricati commerciali | [Guida Compravendita Immobiliare](https://www.notaiogiusto.it/quanto-costa/compravendita-immobiliare) |
-| 🏦 **Mutuo Ipotecario** | Atto di mutuo notarile, iscrizione ipoteca e surroghe | [Guida Costi Notaio Mutuo](https://www.notaiogiusto.it/quanto-costa/mutuo-ipotecario) |
+| 🏦 **Mutuo Ipotecario** | Atto di mutuo notarile, iscrizione ipoteca e surroghe | [Guida Costi Notaio Mutuo](https://www.notaiogiusto.it/quanto-costa/mutuo) |
 | 🎁 **Donazione Immobile** | Donazione tra genitori e figli, franchigie e imposte di donazione | [Guida Donazione Immobile](https://www.notaiogiusto.it/quanto-costa/donazione) |
 | 📜 **Successione Ereditaria** | Dichiarazione di successione, accettazione eredità e volture | [Guida Successione Ereditaria](https://www.notaiogiusto.it/quanto-costa/successione-ereditaria) |
 | 💼 **Costituzione SRL** | Apertura SRL ordinaria e SRLS: atto costitutivo e statuto | [Guida Costituzione SRL Notaio](https://www.notaiogiusto.it/quanto-costa/costituzione-srl) |
 | 🤝 **Cessione Quote Societarie** | Trasferimento quote di SRL e atti societari straordinari | [Guida Cessione Quote](https://www.notaiogiusto.it/quanto-costa/cessione-quote) |
+| 📑 **Procura Notarile** | Procura speciale e generale, autentica di firma | [Guida Procura Notarile](https://www.notaiogiusto.it/quanto-costa/procura) |
 
 ---
 
 ## 📍 Notai nelle Principali Città Italiane
 
-Trova i notai e richiedi preventivi nella tua città:
+Trova i notai, consulta le schede con mappa e richiedi preventivi dettagliati nella tua città:
 
-- 🏛️ **[Notai a Milano](https://www.notaiogiusto.it/quanto-costa/milano-mi/acquisto-prima-casa/notai)** — Centro Storico, Navigli, Porta Nuova, Fiera, Monza e Brianza.
-- 🏛️ **[Notai a Roma](https://www.notaiogiusto.it/quanto-costa/roma-rm/acquisto-prima-casa/notai)** — Prati, Parioli, EUR, Centro, Roma Nord e Roma Sud.
-- 🏛️ **[Notai a Torino](https://www.notaiogiusto.it/quanto-costa/torino-to/acquisto-prima-casa/notai)** — Centro, Crocetta, San Salvario, Collina.
-- 🏛️ **[Notai a Bologna](https://www.notaiogiusto.it/quanto-costa/bologna-bo/acquisto-prima-casa/notai)** — Centro, Saragozza, San Donato, Casalecchio.
-- 🏛️ **[Notai a Firenze](https://www.notaiogiusto.it/quanto-costa/firenze-fi/acquisto-prima-casa/notai)** — Campo di Marte, Centro Storico, Rifredi, Scandicci.
-- 🏛️ **[Notai a Napoli](https://www.notaiogiusto.it/quanto-costa/napoli-na/acquisto-prima-casa/notai)** — Vomero, Chiaia, Posillipo, Centro Direzionale.
-- 🏛️ **[Notai a Genova](https://www.notaiogiusto.it/quanto-costa/genova-ge/acquisto-prima-casa/notai)** — Albaro, Carignano, Nervi, Sampierdarena.
-- 🏛️ **[Notai a Palermo](https://www.notaiogiusto.it/quanto-costa/palermo-pa/acquisto-prima-casa/notai)** — Libertà, Politeama, Notarbartolo.
-- 🏛️ **[Notai a Verona](https://www.notaiogiusto.it/quanto-costa/verona-vr/acquisto-prima-casa/notai)** — Borgo Trento, Centro, San Zeno.
-- 🏛️ **[Notai a Bari](https://www.notaiogiusto.it/quanto-costa/bari-ba/acquisto-prima-casa/notai)** — Murat, Poggiofranco, Carrassi.
+- 🏛️ **[Notai a Milano (MI)](https://www.notaiogiusto.it/notai/mi/milano)** — Oltre 200 studi a Milano: Centro Storico, Navigli, Porta Nuova, Fiera, Città Studi.
+- 🏛️ **[Notai a Roma (RM)](https://www.notaiogiusto.it/notai/rm/roma)** — Studi notarili a Roma: Prati, Parioli, EUR, Centro Storico, Roma Nord e Roma Sud.
+- 🏛️ **[Notai a Torino (TO)](https://www.notaiogiusto.it/notai/to/torino)** — Studi a Torino: Centro, Crocetta, San Salvario, San Paolo, Collina.
+- 🏛️ **[Notai a Bologna (BO)](https://www.notaiogiusto.it/notai/bo/bologna)** — Notai a Bologna: Centro, Saragozza, San Donato, Mazzini.
+- 🏛️ **[Notai a Firenze (FI)](https://www.notaiogiusto.it/notai/fi/firenze)** — Notai a Firenze: Campo di Marte, Centro Storico, Rifredi, Novoli.
+- 🏛️ **[Notai a Napoli (NA)](https://www.notaiogiusto.it/notai/na/napoli)** — Notai a Napoli: Vomero, Chiaia, Posillipo, Fuorigrotta, Centro Direzionale.
+- 🏛️ **[Notai a Genova (GE)](https://www.notaiogiusto.it/notai/ge/genova)** — Notai a Genova: Albaro, Carignano, Foce, Nervi, Sampierdarena.
+- 🏛️ **[Notai a Palermo (PA)](https://www.notaiogiusto.it/notai/pa/palermo)** — Notai a Palermo: Libertà, Politeama, Notarbartolo, Mondello.
+- 🏛️ **[Notai a Verona (VR)](https://www.notaiogiusto.it/notai/vr/verona)** — Notai a Verona: Borgo Trento, Centro Storico, San Zeno.
+- 🏛️ **[Notai a Bari (BA)](https://www.notaiogiusto.it/notai/ba/bari)** — Notai a Bari: Murat, Poggiofranco, Carrassi, Picone.
+- 🏛️ **[Notai a Brescia (BS)](https://www.notaiogiusto.it/notai/bs/brescia)** — Notai a Brescia: Centro, Carmine, Borgo Trento, Brescia Due.
+- 🏛️ **[Notai a Padova (PD)](https://www.notaiogiusto.it/notai/pd/padova)** — Notai a Padova: Centro Storico, Arcella, Prato della Valle.
+- 🏛️ **[Notai a Bergamo (BG)](https://www.notaiogiusto.it/notai/bg/bergamo)** — Notai a Bergamo: Città Alta, Città Bassa, Borgo Palazzo.
+- 🏛️ **[Notai a Catania (CT)](https://www.notaiogiusto.it/notai/ct/catania)** — Notai a Catania: Corso Italia, Ognina, Barriera, Centro.
+
+Per tutti gli altri comuni e province: consulta la [Directory Completa dei Notai in Italia](https://www.notaiogiusto.it/notai).
+
+---
+
+## 📊 Open Data & Metriche di Settore
+
+NotaioGiusto.it analizza regolarmente la distribuzione territoriale degli studi notarili e la trasparenza tariffaria:
+
+- **4.830 Studi Notarili Censiti** in 107 province italiane.
+- **71 Prestazioni Notarili Classificate** con range di complessità, documenti obbligatori e breakdown imposte statali vs onorari.
+- **Copertura Territoriale Completa**: Distretti notarili, comuni sede di studio e recapiti verificati da fonte pubblica ufficiale.
 
 ---
 
 ## 🛠️ Stack Tecnologico
 
-- **Frontend & SSG**: [Astro](https://astro.build/) per una generazione statica istantanea e indicizzazione SEO perfetta.
-- **Styling**: Tailwind CSS con design system professionale, pulito e responsive.
-- **Hosting & Global CDN**: Cloudflare Pages con edge caching distribuito.
-- **Dati & Database**: PostgreSQL con tassonomia completa delle prestazioni notarili italiane.
+- **Framework**: [Astro](https://astro.build/) SSR su runtime Node.js.
+- **Database**: PostgreSQL con supporto GIS per il calcolo delle distanze e del raggio chilometrico.
+- **Performance & Edge**: Cloudflare CDN + NGINX reverse proxy con caching e compressione gzip/brotli.
+- **Consent & Ads**: Google AdSense con integrazione UniConsent CMP conforme a IAB TCF v2.2 e Google Consent Mode v2.
 
 ---
 
 ## 🔗 Link Ufficiali & Risorse
 
 - 🌐 **Sito Web Ufficiale**: [https://www.notaiogiusto.it](https://www.notaiogiusto.it/)
-- 💰 **Hub Tariffe & Costi**: [https://www.notaiogiusto.it/quanto-costa](https://www.notaiogiusto.it/quanto-costa)
-- 🏠 **Preventivo Prima Casa**: [https://www.notaiogiusto.it/quanto-costa/acquisto-prima-casa](https://www.notaiogiusto.it/quanto-costa/acquisto-prima-casa)
-- 🏢 **Costituzione SRL**: [https://www.notaiogiusto.it/quanto-costa/costituzione-srl](https://www.notaiogiusto.it/quanto-costa/costituzione-srl)
+- 🧭 **Cerca Notai per Città e Provincia**: [https://www.notaiogiusto.it/notai](https://www.notaiogiusto.it/notai)
+- 💰 **Hub Tariffe e Preventivi**: [https://www.notaiogiusto.it/quanto-costa](https://www.notaiogiusto.it/quanto-costa)
+- 🏠 **Guida Costo Rogito Prima Casa**: [https://www.notaiogiusto.it/quanto-costa/acquisto-prima-casa](https://www.notaiogiusto.it/quanto-costa/acquisto-prima-casa)
+- 🏢 **Guida Costituzione SRL**: [https://www.notaiogiusto.it/quanto-costa/costituzione-srl](https://www.notaiogiusto.it/quanto-costa/costituzione-srl)
+- 📝 **Richiesta Preventivo Notarile**: [https://www.notaiogiusto.it/preventivo](https://www.notaiogiusto.it/preventivo)
 
 ---
 
 <div align="center">
-  <sub>Trasparenza notarile e calcolo costi in Italia. &copy; 2026 <a href="https://www.notaiogiusto.it/">NotaioGiusto.it</a></sub>
+  <sub>NotaioGiusto.it — Trasparenza notarile e calcolo costi in Italia. &copy; 2026 <a href="https://www.notaiogiusto.it/">NotaioGiusto.it</a></sub>
 </div>

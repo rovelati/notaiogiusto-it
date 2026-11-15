@@ -4,7 +4,7 @@ import { getAdminEmail } from '../lib/admin';
 import { getGaMeasurementId } from '../lib/analytics';
 import { getClientEmail } from '../lib/client-auth';
 import { getNotaryEmail } from '../lib/notary-auth';
-import { absoluteUrl, siteConfig } from '../lib/site';
+import { absoluteUrl, getSiteUrl, siteConfig } from '../lib/site';
 
 const {
   title = 'NotaioGiusto.it',
@@ -24,7 +24,23 @@ const {
 
 const canonical = absoluteUrl(canonicalPath || Astro.url.pathname);
 const shareImage = absoluteUrl(ogImage || '/brand/og-default.jpg');
-const jsonLdBlocks = Array.isArray(jsonLd) ? jsonLd : jsonLd ? [jsonLd] : [];
+const siteUrl = getSiteUrl();
+const globalWebsiteSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: siteConfig.name,
+  url: siteUrl,
+  sameAs: ['https://github.com/rovelati/notaiogiusto-it'],
+  potentialAction: {
+    '@type': 'SearchAction',
+    target: `${siteUrl}/notai?q={search_term_string}`,
+    'query-input': 'required name=search_term_string',
+  },
+};
+const jsonLdBlocks = [
+  globalWebsiteSchema,
+  ...(Array.isArray(jsonLd) ? jsonLd : jsonLd ? [jsonLd] : []),
+];
 const gaId = getGaMeasurementId();
 const adminEmail = getAdminEmail(Astro.cookies);
 const clientEmail = getClientEmail(Astro.cookies);
