@@ -488,12 +488,15 @@ export async function getNotariesByIds(ids: string[]) {
 }
 
 export async function getPublishedNotarySlugs(limit = 5000) {
-  return query<{ source_slug: string; updated_at: string | null }>(
+  return query<{ source_slug: string; updated_at: string | null; is_enriched: boolean }>(
     `
-    select source_slug, updated_at::text
+    select
+      source_slug,
+      updated_at::text,
+      (google_place_id is not null or coalesce(website, '') <> '') as is_enriched
     from notai.notaries
     where status = 'published' and coalesce(source_slug, '') <> ''
-    order by updated_at desc nulls last, full_name asc
+    order by (google_place_id is not null or coalesce(website, '') <> '') desc, updated_at desc nulls last, full_name asc
     limit $1
     `,
     [limit],

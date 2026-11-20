@@ -8,9 +8,9 @@ export const GET: APIRoute = async () => {
   const today = new Date().toISOString().slice(0, 10);
   const body = renderSitemapIndex([
     { path: '/sitemap-static.xml', lastmod: today },
-    { path: '/sitemap-province.xml', lastmod: today },
     { path: '/sitemap-citta.xml', lastmod: today },
     { path: '/sitemap-servizi.xml', lastmod: today },
+    { path: '/sitemap-province.xml', lastmod: today },
     { path: '/sitemap-local.xml', lastmod: today },
     { path: '/sitemap-notai.xml', lastmod: today },
   ]);

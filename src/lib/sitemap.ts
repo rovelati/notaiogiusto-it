@@ -1,4 +1,4 @@
-import { MACRO_CATEGORIES, SEO_SERVICE_LINKS } from './locations';
+import { CAPOLUOGHI, MACRO_CATEGORIES, SEO_SERVICE_LINKS } from './locations';
 import { getAllServices, getPublishedNotarySlugs } from './notai';
 import { getSiteUrl } from './site';
 import {
@@ -148,28 +148,33 @@ export async function buildProvinceUrls(): Promise<SitemapUrl[]> {
 
 export async function buildCittaUrls(): Promise<SitemapUrl[]> {
   const cities = await getSitemapListingCities(SITEMAP_CITY_MIN_NOTARIES);
-  return cities.map((city) => ({
-    path: city.path,
-    bucket: 'citta',
-    changefreq: 'weekly',
-    priority: city.notaryCount >= 10 ? 0.8 : 0.7,
-  }));
+  const capoluoghiSet = new Set(CAPOLUOGHI.map((c) => (c.province || '').toUpperCase()));
+  return cities.map((city) => {
+    const isCapoluogo = capoluoghiSet.has((city.province || '').toUpperCase());
+    return {
+      path: city.path,
+      bucket: 'citta',
+      changefreq: 'weekly',
+      priority: isCapoluogo ? 0.95 : city.notaryCount >= 10 ? 0.85 : 0.75,
+    };
+  });
 }
 
 export async function buildServiziUrls(): Promise<SitemapUrl[]> {
   const services = await getAllServices();
+  const topServiceSlugs = new Set(SEO_SERVICE_LINKS.map((s) => s.slug));
   return [
     ...MACRO_CATEGORIES.map((macro) => ({
       path: `/quanto-costa/categoria/${macro.slug}`,
       bucket: 'servizi' as const,
       changefreq: 'weekly' as const,
-      priority: 0.75,
+      priority: 0.85,
     })),
     ...services.map((service) => ({
       path: `/quanto-costa/${service.slug}`,
       bucket: 'servizi' as const,
       changefreq: 'weekly' as const,
-      priority: 0.7,
+      priority: topServiceSlugs.has(service.slug) ? 0.9 : 0.75,
     })),
   ];
 }
@@ -187,7 +192,7 @@ export async function buildLocalQuantoCostaUrls(): Promise<SitemapUrl[]> {
         path: `/quanto-costa/${city.locationSlug}/${service.slug}/notai`,
         bucket: 'local',
         changefreq: 'weekly',
-        priority: city.notaryCount >= 10 ? 0.6 : 0.5,
+        priority: city.notaryCount >= 10 ? 0.65 : 0.55,
       });
     }
   }
@@ -200,7 +205,7 @@ export async function buildNotaiUrls(): Promise<SitemapUrl[]> {
     path: `/notai/${(row.source_slug || '').toLowerCase()}`,
     bucket: 'notai',
     changefreq: 'monthly',
-    priority: 0.65,
+    priority: row.is_enriched ? 0.6 : 0.35,
     lastmod: row.updated_at,
   }));
 }
